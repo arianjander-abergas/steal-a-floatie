@@ -1,2 +1,4 @@
 *.rbxl.lock
 *.rbxlx.lock
+*.zip
+sourcemap.json
