@@ -52,6 +52,17 @@ Config.PumpInterval = 3.5           -- a new Floatie appears on the Pump Line ev
 Config.PumpTravelTime = 34          -- seconds to ride the whole line
 
 ---------------------------------------------------------------------
+-- Game feel (client-side visuals only — safe to tweak any time)
+---------------------------------------------------------------------
+Config.Feel = {
+	BobHeight = 0.35,     -- studs a Floatie floats up and down
+	BobSpeed = 1.6,       -- bob cycles speed
+	SquishAmount = 0.06,  -- 0.06 = stretches 6% taller / squats 3% wider
+	SquishSpeed = 3.2,
+	AnimDistance = 140,   -- only animate Floaties this close to the camera (performance)
+}
+
+---------------------------------------------------------------------
 -- Rarities (weight = chance to appear on the Pump Line)
 ---------------------------------------------------------------------
 Config.Rarities = {
