@@ -28,7 +28,7 @@
 | `src/GameServer.server.luau` | `ServerScriptService/GameServer` | all the gameplay: buying, income, inflating, stealing, darts, lock, rebirth, events, purchases, saving |
 | `src/server/DataService.luau` | `ServerScriptService/Server/DataService` | saving and loading |
 | `src/server/MapBuilder.luau` | `ServerScriptService/Server/MapBuilder` | builds the map and the Dart Blaster |
-| `src/client/ClientMain.client.luau` | `StarterPlayer/StarterPlayerScripts/ClientMain` | HUD, shop, notifications, dart shooting |
+| `src/client/ClientMain/` | `StarterPlayer/StarterPlayerScripts/ClientMain` | LocalScript `ClientMain` (`init.client.luau`) plus modules: Kit = UI toolkit, HUD, Shop/Rebirth/Codes panels, and gameplay helpers (toasts, sounds, event banner, carry box, tutorial, prompts, darts, knockback, effects) |
 
 `Art/` holds the game icon and thumbnail for the Roblox page.
 

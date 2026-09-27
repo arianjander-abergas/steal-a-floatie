@@ -11,7 +11,7 @@
     },
     "StarterPlayer": {
       "StarterPlayerScripts": {
-        "ClientMain": { "$path": "src/client/ClientMain.client.luau" }
+        "ClientMain": { "$path": "src/client/ClientMain" }
       }
     }
   }

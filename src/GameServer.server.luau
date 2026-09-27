@@ -47,6 +47,7 @@ local FireDartRE = remote("FireDart")
 local KnockbackRE = remote("Knockback")
 local RebirthRE = remote("Rebirth")
 local RedeemRF = remote("RedeemCode", "RemoteFunction")
+local RequestHomeRE = remote("RequestHome") -- HUD Home button (no arguments)
 Remotes.Parent = ReplicatedStorage
 
 ---------------------------------------------------------------------
@@ -62,7 +63,7 @@ for _, base in ipairs(bases) do
 	base.lockReadyAt = 0
 end
 
-local profiles = {}     -- [Player] = { data, canSave, base, passes, incomePerSec, dartReady, loaded }
+local profiles = {}     -- [Player] = { data, canSave, base, passes, incomePerSec, dartReady, homeReady, loaded }
 local carries = {}      -- [thief Player] = carry info
 local carriedKeys = {}  -- ["ownerUserId:uid"] = true while that Floatie is on someone's head
 local lineItems = {}    -- Floaties riding the Pump Line
@@ -126,6 +127,24 @@ end
 
 local function growthMultiplier(player)
 	return if hasPass(player, "FastInflate") then 1.5 else 1
+end
+
+-- Luck shown on the HUD. Stage 2 (Lucky Breeze) makes this real.
+local function luckMultiplier(_player)
+	return 1
+end
+
+-- numbers the HUD reads: Cash = the real income multiplier
+-- (rebirths x DoubleAir x VIP x event incomeMult, see incomeMultiplier)
+local function publishMultipliers(player)
+	local prof = profiles[player]
+	if not prof then
+		return
+	end
+	local cash = incomeMultiplier(player)
+	player:SetAttribute("CashMultiplier", cash)
+	player:SetAttribute("LuckMultiplier", luckMultiplier(player))
+	player:SetAttribute("BoostPercent", math.floor((cash - 1) * 100 + 0.5))
 end
 
 -- income per second of one Floatie BEFORE the player's multipliers
@@ -731,6 +750,7 @@ local function onBuy(player, item)
 	end
 	item.bought = true
 	prof.data.air -= price
+	player:SetAttribute("Air", prof.data.air) -- now, so the HUD drops at once (not at the next 1 s tick)
 	local pos = item.model:GetPivot().Position
 	item.model:Destroy()
 	local idx = table.find(lineItems, item)
@@ -775,7 +795,10 @@ end
 ---------------------------------------------------------------------
 -- Events
 ---------------------------------------------------------------------
+-- nextEventAt is mirrored to ReplicatedStorage "NextEventAt" (server time)
+-- every time it is assigned, so the HUD event timer can count down to it.
 local nextEventAt = now() + Config.EventInterval
+ReplicatedStorage:SetAttribute("NextEventAt", nextEventAt)
 
 local function startEvent(name, by)
 	local ev = Config.Events[name]
@@ -784,9 +807,16 @@ local function startEvent(name, by)
 	end
 	ReplicatedStorage:SetAttribute("Event", name)
 	ReplicatedStorage:SetAttribute("EventEndsAt", now() + ev.duration)
+	-- event income (Golden Hour) changes Cash / boost % right away
+	for p, prof in pairs(profiles) do
+		if prof.loaded then
+			publishMultipliers(p)
+		end
+	end
 	local thanks = if by then " (thanks " .. by .. "!)" else ""
 	notifyAll(ev.title .. " — " .. ev.desc .. thanks, "event")
 	nextEventAt = now() + ev.duration + Config.EventInterval
+	ReplicatedStorage:SetAttribute("NextEventAt", nextEventAt)
 	return true
 end
 
@@ -831,6 +861,7 @@ MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, passI
 		if info.id == passId then
 			prof.passes[name] = true
 			player:SetAttribute("Pass_" .. name, true)
+			publishMultipliers(player) -- DoubleAir / VIP change Cash right away
 			notify(player, "Thanks for buying " .. info.title .. "! 💖", "success")
 			if name == "ExtraPedestals" then
 				refreshBase(player)
@@ -911,6 +942,7 @@ RebirthRE.OnServerEvent:Connect(function(player)
 	end
 	prof.data.rebirths += 1
 	prof.data.air = Config.StartingAir
+	player:SetAttribute("Air", prof.data.air) -- the HUD drops at once
 	prof.data.floaties = {}
 	if best then
 		best.slot = 1
@@ -918,6 +950,7 @@ RebirthRE.OnServerEvent:Connect(function(player)
 	end
 	refreshBase(player)
 	player:SetAttribute("Rebirths", prof.data.rebirths)
+	publishMultipliers(player)
 	notifyAll("🌟 " .. player.DisplayName .. " reached Rebirth " .. prof.data.rebirths .. "!", "event")
 end)
 
@@ -946,6 +979,42 @@ RedeemRF.OnServerInvoke = function(player, code)
 	end
 	return true, "Code redeemed! 🎉"
 end
+
+---------------------------------------------------------------------
+-- Home button: teleport to your base spawn. Later stages add more
+-- reasons to refuse inside canGoHome.
+---------------------------------------------------------------------
+local function canGoHome(player)
+	if carries[player] then
+		return false, "You can't go Home while carrying a Floatie!"
+	end
+	return true, nil
+end
+
+RequestHomeRE.OnServerEvent:Connect(function(player)
+	local prof = profiles[player]
+	if not prof or not prof.loaded then
+		return
+	end
+	local clock = os.clock()
+	if clock < prof.homeReady then
+		return -- rate limit (silent)
+	end
+	-- 0.5 s of slack: the HUD waits the full cooldown between clicks, but lag
+	-- can bring two requests here a little closer together than that
+	prof.homeReady = clock + Config.HomeCooldown - 0.5
+	local ok, reason = canGoHome(player)
+	if not ok then
+		notify(player, reason, "error")
+		return
+	end
+	local char = player.Character
+	local hum = char and char:FindFirstChildOfClass("Humanoid")
+	if not hum or hum.Health <= 0 or not char:FindFirstChild("HumanoidRootPart") then
+		return
+	end
+	char:PivotTo(bases[prof.base].spawn.CFrame * CFrame.new(0, 4, 0)) -- same as the join teleport (onPlayerAdded)
+end)
 
 ---------------------------------------------------------------------
 -- Admin commands
@@ -1063,7 +1132,7 @@ local function onPlayerAdded(player)
 		player:Kick("This server is full, please join another one!")
 		return
 	end
-	local prof = { data = data, canSave = canSave, base = baseIndex, passes = {}, incomePerSec = 0, dartReady = 0, loaded = false }
+	local prof = { data = data, canSave = canSave, base = baseIndex, passes = {}, incomePerSec = 0, dartReady = 0, homeReady = 0, loaded = false }
 	profiles[player] = prof
 	loadPasses(player)
 	normalizeSlots(player)
@@ -1110,7 +1179,8 @@ local function onPlayerAdded(player)
 	player:SetAttribute("Air", data.air)
 	player:SetAttribute("Rebirths", data.rebirths)
 	player:SetAttribute("IncomePerSec", 0)
-	-- brand-new players get the tutorial (see ClientMain)
+	publishMultipliers(player) -- CashMultiplier / LuckMultiplier / BoostPercent for the HUD
+	-- brand-new players get the tutorial (see ClientMain/Tutorial)
 	player:SetAttribute("ShowTutorial", #data.floaties == 0 and data.rebirths == 0 and data.stats.steals == 0)
 	player.RespawnLocation = bases[baseIndex].spawn
 	refreshBase(player)
@@ -1231,9 +1301,7 @@ task.spawn(function()
 		task.wait(0.2)
 		local t = now()
 		for thief, c in pairs(carries) do
-			if not thief.Parent then
-				endCarry(thief, "returned")
-			elseif t >= c.endsAt then
+			if not thief.Parent or t >= c.endsAt then
 				endCarry(thief, "returned")
 			else
 				local prof = profiles[thief]
@@ -1297,6 +1365,7 @@ task.spawn(function()
 				player:SetAttribute("Air", prof.data.air)
 				player:SetAttribute("IncomePerSec", income)
 				player:SetAttribute("Rebirths", prof.data.rebirths)
+				publishMultipliers(player) -- also catches an event ending
 				prof.stats.air.Value = Config.Format(prof.data.air)
 				prof.stats.rebirths.Value = prof.data.rebirths
 				prof.stats.steals.Value = prof.data.stats.steals
