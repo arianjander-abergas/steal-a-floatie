@@ -1,0 +1,18 @@
+{
+  "name": "StealAFloatie",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "Shared": { "$path": "src/shared" }
+    },
+    "ServerScriptService": {
+      "Server": { "$path": "src/server" },
+      "GameServer": { "$path": "src/GameServer.server.luau" }
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "ClientMain": { "$path": "src/client/ClientMain.client.luau" }
+      }
+    }
+  }
+}
