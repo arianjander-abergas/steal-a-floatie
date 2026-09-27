@@ -60,6 +60,27 @@ Config.Feel = {
 	SquishAmount = 0.06,  -- 0.06 = stretches 6% taller / squats 3% wider
 	SquishSpeed = 3.2,
 	AnimDistance = 140,   -- only animate Floaties this close to the camera (performance)
+	InflateTime = 0.8,    -- seconds a Floatie takes to puff up when it grows a stage
+	InflateSparkles = 40, -- sparkles that burst out when it finishes growing
+	-- idle "alive" motion (degrees / studs; set to 0 to turn one off)
+	SwayDegrees = 5,      -- rocks side to side
+	TiltDegrees = 3,      -- nods forward and back
+	SwaySpeed = 0.9,
+	TurnDegrees = 12,     -- slowly looks around left / right
+	TurnSpeed = 0.35,
+	DriftDistance = 0.3,  -- drifts around on its string
+	-- eyes
+	BlinkEvery = { Min = 2, Max = 5 }, -- seconds between blinks (random)
+	BlinkTime = 0.14,
+	LookDistance = 30,    -- eyes follow you when you're this close
+}
+
+-- How the balloon models look (applies to newly built Floaties)
+Config.Balloon = {
+	Reflectance = 0.22,        -- glossy latex sheen (0 = matte)
+	ShineTransparency = 0.3,  -- the white highlight streak (1 = hidden)
+	StringWidth = 0.07,
+	StringColor = Color3.fromRGB(235, 235, 245),
 }
 
 ---------------------------------------------------------------------

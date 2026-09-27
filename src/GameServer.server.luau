@@ -257,7 +257,8 @@ local function removeFromPedestal(base, slot)
 	updatePedestal(base, slot)
 end
 
-local function placeFloatie(player, f)
+-- fromStage (optional) = the stage it just grew from, so clients play the inflate animation
+local function placeFloatie(player, f, fromStage)
 	local prof = profiles[player]
 	if not prof then
 		return
@@ -279,6 +280,11 @@ local function placeFloatie(player, f)
 	model:PivotTo(pedestalTopCF(base, f.slot))
 	model:SetAttribute("OwnerUserId", player.UserId)
 	model:SetAttribute("Uid", f.uid)
+	local from = fromStage and Config.Stages[fromStage]
+	if from then
+		model:SetAttribute("InflateFrom", from.scale / st.scale)
+		model:SetAttribute("InflateAt", workspace:GetServerTimeNow())
+	end
 	model.Parent = base.floatieFolder
 	base.models[f.slot] = model
 	base.slotData[f.slot] = f
@@ -978,10 +984,13 @@ local function onChatted(player, msg)
 		prof.data.air += tonumber(args[2]) or 0
 	elseif cmd == "grow" then
 		for _, f in ipairs(prof.data.floaties) do
+			local old = f.stage
 			f.stage = math.min(#Config.Stages, f.stage + 1)
 			f.growth = 0
+			if f.stage ~= old and not carriedKeys[carryKey(player, f.uid)] then
+				placeFloatie(player, f, old) -- rebuild at the new size (with the inflate animation)
+			end
 		end
-		refreshBase(player)
 	end
 end
 
@@ -1277,14 +1286,12 @@ task.spawn(function()
 				local total = 0
 				for _, f in ipairs(prof.data.floaties) do
 					if f.slot and f.slot <= count and not carriedKeys[carryKey(player, f.uid)] then
+						local oldStage = f.stage
 						local changed = growFloatie(f, gm)
 						total += floatieIncome(f)
 						if changed then
 							local def = Config.FloatieById[f.id]
-							local model = base.models[f.slot]
-							local pos = if model then model:GetPivot().Position else pedestalTopCF(base, f.slot).Position
-							placeFloatie(player, f) -- rebuild at the new size
-							FloatieModel.PopEffect(pos + Vector3.new(0, 3, 0), def.color)
+							placeFloatie(player, f, oldStage) -- rebuild at the new size; clients animate the inflate
 							notify(player, "🎈 Your " .. def.name .. " inflated to " .. Config.Stages[f.stage].name .. "!", "success")
 						elseif tick % 3 == 0 and base.models[f.slot] then
 							refreshLabel(player, f, base.models[f.slot])

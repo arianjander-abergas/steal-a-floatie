@@ -505,13 +505,19 @@ RunService.RenderStepped:Connect(function(dt)
 end)
 
 ---------------------------------------------------------------------
--- Floatie feel: every Floatie bobs and squishes like a real balloon.
--- Purely visual: it only changes each part's SpecialMesh Offset/Scale, so it
--- never fights the server over where a Floatie is. Tune it in Config.Feel.
--- (Custom FloatieMeshes models have no SpecialMesh, so they stay still.)
+-- Floatie feel: every Floatie is alive — it bobs, squishes, sways, tilts,
+-- turns a little, drifts on its string, blinks, and its eyes follow you.
+-- All of this is client-side and visual only:
+--   • squish / bob / blink / looking = each part's SpecialMesh Offset/Scale
+--   • sway / tilt / turn / drift = moving the anchored Root locally (the server
+--     never sees it; when the server moves a Floatie we pick up its new spot)
+-- Tune everything in Config.Feel. (Custom FloatieMeshes models only sway.)
 ---------------------------------------------------------------------
 local Feel = Config.Feel
-local feelCache = {} -- model -> { phase, active, parts = { { mesh, rel } } }
+local feelCache = {} -- model -> parts info (rebuilt whenever the model's parts change)
+local motion = setmetatable({}, { __mode = "k" }) -- model -> { base, written } (kept across rebuilds)
+
+local EYE_PARTS = { Eye = true, Pupil = true, Glint = true }
 
 local function buildFeel(model)
 	local root = model.PrimaryPart
@@ -523,11 +529,82 @@ local function buildFeel(model)
 	for _, part in ipairs(model:GetChildren()) do
 		local mesh = part:IsA("BasePart") and part:FindFirstChildOfClass("SpecialMesh")
 		if mesh then
-			table.insert(parts, { mesh = mesh, rel = rootCF:ToObjectSpace(part.CFrame) })
+			table.insert(parts, {
+				mesh = mesh,
+				rel = rootCF:ToObjectSpace(part.CFrame),
+				att = part:FindFirstChild("StringTop"),
+				blink = EYE_PARTS[part.Name] ~= nil,
+				eyeFwd = part:GetAttribute("EyeFwd"),
+				eyeShift = part:GetAttribute("EyeShift"),
+			})
 		end
 	end
+	-- remember where the string touches the ground before we start moving things
+	local stringBottom = root:FindFirstChild("StringBottom")
+	if stringBottom and not stringBottom:GetAttribute("Rest") then
+		stringBottom:SetAttribute("Rest", stringBottom.Position)
+	end
 	local pos = rootCF.Position
-	return { phase = (pos.X * 0.37 + pos.Z * 0.61) % (math.pi * 2), active = false, parts = parts }
+	local inflateAt = model:GetAttribute("InflateAt")
+	if inflateAt and workspace:GetServerTimeNow() - inflateAt > Feel.InflateTime + 0.5 then
+		inflateAt = nil -- grew long ago (e.g. before we joined): nothing to play
+	end
+	return {
+		phase = (pos.X * 0.37 + pos.Z * 0.61) % (math.pi * 2), active = false, parts = parts,
+		inflateFrom = model:GetAttribute("InflateFrom") or 1, inflateAt = inflateAt,
+		nextBlink = os.clock() + math.random() * Feel.BlinkEvery.Max,
+		stringBottom = stringBottom, stringRest = stringBottom and stringBottom:GetAttribute("Rest"),
+	}
+end
+
+-- a quick burst of sparkles from a Floatie that just grew
+local sparkled = setmetatable({}, { __mode = "k" })
+local function inflateBurst(model)
+	if sparkled[model] then
+		return
+	end
+	sparkled[model] = true
+	local body = model:FindFirstChild("Body") or model.PrimaryPart
+	local e = make("ParticleEmitter", {
+		Rate = 0, Speed = NumberRange.new(6, 14), SpreadAngle = Vector2.new(180, 180),
+		Lifetime = NumberRange.new(0.4, 0.8), Drag = 4, LightEmission = 1,
+		Size = NumberSequence.new(0.6, 0), Color = ColorSequence.new(Color3.fromRGB(255, 250, 210)),
+	}, body)
+	e:Emit(Feel.InflateSparkles)
+	task.delay(1, function()
+		e:Destroy()
+	end)
+end
+
+-- 0 -> 1 with a springy overshoot at the end (balloon "boing")
+local function inflateGrowth(info)
+	if not info.inflateAt then
+		return 1
+	end
+	local alpha = (workspace:GetServerTimeNow() - info.inflateAt) / Feel.InflateTime
+	if alpha >= 1 then
+		info.inflateAt = nil
+		return 1
+	end
+	local eased = TweenService:GetValue(math.max(alpha, 0), Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+	return info.inflateFrom + (1 - info.inflateFrom) * eased
+end
+
+-- 1 = eyes open, dips to ~0.1 during a blink
+local function blinkAmount(info, t)
+	if t >= info.nextBlink + Feel.BlinkTime then
+		local every = Feel.BlinkEvery
+		if math.random() < 0.2 then
+			info.nextBlink = t + Feel.BlinkTime * 0.6 -- sometimes a quick double blink
+		else
+			info.nextBlink = t + every.Min + math.random() * (every.Max - every.Min)
+		end
+	end
+	local a = (t - info.nextBlink) / Feel.BlinkTime
+	if a < 0 or a > 1 then
+		return 1
+	end
+	return 1 - 0.9 * math.sin(a * math.pi)
 end
 
 -- how much a part's local axis v stretches when the model is scaled (sxz, sy, sxz)
@@ -535,15 +612,58 @@ local function axisScale(v, sy, sxz)
 	return math.sqrt((sxz * v.X) ^ 2 + (sy * v.Y) ^ 2 + (sxz * v.Z) ^ 2)
 end
 
--- stretch the model around its feet: sy = height factor, sxz = width factor, lift = bob
-local function applyFeel(info, sy, sxz, lift)
+-- stretch the model around its feet: sy = height factor, sxz = width factor, lift = bob.
+-- lookDir (root space, or nil) slides the pupils toward what the Floatie is looking at.
+local function applyFeel(info, sy, sxz, lift, blink, lookDir)
 	for _, pt in ipairs(info.parts) do
 		local rel = pt.rel
 		local p = rel.Position
 		local delta = Vector3.new(p.X * (sxz - 1), p.Y * (sy - 1) + lift, p.Z * (sxz - 1))
-		pt.mesh.Offset = rel:VectorToObjectSpace(delta)
-		pt.mesh.Scale = Vector3.new(axisScale(rel.XVector, sy, sxz), axisScale(rel.YVector, sy, sxz), axisScale(rel.ZVector, sy, sxz))
+		if pt.eyeFwd and lookDir then
+			-- only the sideways / up-down part of the look direction moves the pupil
+			local fwd = pt.eyeFwd
+			local side = lookDir - fwd * lookDir:Dot(fwd)
+			if side.Magnitude > 1 then
+				side = side.Unit
+			end
+			delta += side * pt.eyeShift
+		end
+		local offset = rel:VectorToObjectSpace(delta)
+		pt.mesh.Offset = offset
+		if pt.att then
+			pt.att.Position = offset -- keep the string tied to the (visually moved) knot
+		end
+		local scale = Vector3.new(axisScale(rel.XVector, sy, sxz), axisScale(rel.YVector, sy, sxz), axisScale(rel.ZVector, sy, sxz))
+		if pt.blink and blink < 1 then
+			scale = Vector3.new(scale.X, scale.Y * blink, scale.Z)
+		end
+		pt.mesh.Scale = scale
 	end
+end
+
+-- where the server put this Floatie (notices server moves, ignores our own wiggles)
+local function motionState(model, root)
+	local m = motion[model]
+	local cf = root.CFrame
+	if not m then
+		m = { base = cf, written = cf }
+		motion[model] = m
+	elseif (cf.Position - m.written.Position).Magnitude > 1e-3 or cf.LookVector:Dot(m.written.LookVector) < 0.99999 then
+		m.base = cf -- the server moved it (pump line, ...)
+		m.written = cf
+	end
+	return m
+end
+
+-- sway / tilt / turn / drift around the feet
+local function idleMotion(phase, t)
+	local rad = math.rad
+	local yaw = rad(Feel.TurnDegrees) * math.sin(t * Feel.TurnSpeed + phase)
+	local roll = rad(Feel.SwayDegrees) * math.sin(t * Feel.SwaySpeed + phase * 1.7)
+	local pitch = rad(Feel.TiltDegrees) * math.sin(t * Feel.SwaySpeed * 0.77 + phase * 2.3)
+	local d = Feel.DriftDistance
+	local drift = Vector3.new(d * math.sin(t * 0.31 + phase), 0, d * math.sin(t * 0.23 + phase * 1.3))
+	return CFrame.new(drift) * CFrame.Angles(0, yaw, 0) * CFrame.Angles(roll, 0, pitch)
 end
 
 local function watchFloatie(model)
@@ -557,10 +677,13 @@ end
 CollectionService:GetInstanceAddedSignal("Floatie"):Connect(watchFloatie)
 CollectionService:GetInstanceRemovedSignal("Floatie"):Connect(function(model)
 	feelCache[model] = nil
+	motion[model] = nil
 end)
 
 RunService.RenderStepped:Connect(function()
 	local camPos = workspace.CurrentCamera.CFrame.Position
+	local char = player.Character
+	local head = char and char:FindFirstChild("Head")
 	local t = os.clock()
 	for _, model in ipairs(CollectionService:GetTagged("Floatie")) do
 		local root = model.PrimaryPart
@@ -570,15 +693,40 @@ RunService.RenderStepped:Connect(function()
 				info = buildFeel(model)
 				feelCache[model] = info
 			end
-			if info then
-				if (root.Position - camPos).Magnitude <= Feel.AnimDistance then
-					local s = math.sin(t * Feel.SquishSpeed + info.phase) * Feel.SquishAmount
-					local lift = Feel.BobHeight * (0.5 + 0.5 * math.sin(t * Feel.BobSpeed + info.phase))
-					applyFeel(info, 1 + s, 1 - s * 0.5, lift)
-					info.active = true
-				elseif info.active then
-					applyFeel(info, 1, 1, 0)
-					info.active = false
+			-- only anchored Floaties sway (carried ones are welded to a player)
+			local m = if root.Anchored then motionState(model, root) else nil
+			local near = (root.Position - camPos).Magnitude <= Feel.AnimDistance
+			if info and near then
+				local s = math.sin(t * Feel.SquishSpeed + info.phase) * Feel.SquishAmount
+				local lift = Feel.BobHeight * (0.5 + 0.5 * math.sin(t * Feel.BobSpeed + info.phase))
+				local wasInflating = info.inflateAt ~= nil
+				local g = inflateGrowth(info)
+				if wasInflating and not info.inflateAt then
+					inflateBurst(model)
+				end
+				-- look at you when you're close, otherwise let the eyes wander
+				local lookDir
+				local toHead = head and (head.Position - root.Position)
+				if toHead and toHead.Magnitude <= Feel.LookDistance then
+					lookDir = root.CFrame:VectorToObjectSpace(toHead.Unit)
+				else
+					lookDir = Vector3.new(1, 0.4 * math.sin(t * 0.5 + info.phase), 0.8 * math.sin(t * 0.37 + info.phase)).Unit
+				end
+				applyFeel(info, (1 + s) * g, (1 - s * 0.5) * g, lift, blinkAmount(info, t), lookDir)
+				info.active = true
+			elseif info and info.active then
+				applyFeel(info, 1, 1, 0, 1, nil)
+				info.active = false
+			end
+			if m then
+				local cf = if near then m.base * idleMotion(if info then info.phase else 0, t) else m.base
+				if cf ~= m.written then
+					root.CFrame = cf
+					m.written = cf
+				end
+				-- the string stays tied to the ground while the balloon drifts
+				if info and info.stringBottom and info.stringRest then
+					info.stringBottom.WorldPosition = m.base:PointToWorldSpace(info.stringRest)
 				end
 			end
 		end
