@@ -255,6 +255,7 @@ function FloatieModel.Build(def, mutId, scale)
 
 	local model = Instance.new("Model")
 	model.Name = def.name
+	CollectionService:AddTag(model, "Floatie") -- the client animates these (bob / squish)
 
 	local root = Instance.new("Part")
 	root.Name = "Root"
