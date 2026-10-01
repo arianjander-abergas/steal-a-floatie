@@ -168,6 +168,11 @@ function HUD.setBadge(name, value)
 	end
 end
 
+-- HUD.getTile("Upgrades") -> the tile button (or nil); "Shop" gives the Shop button
+function HUD.getTile(name)
+	return tileButtons[name]
+end
+
 ---------------------------------------------------------------------
 -- Event timer (called by init every 0.2 s)
 ---------------------------------------------------------------------
@@ -293,6 +298,7 @@ function HUD.mount(canvas, actions)
 	local shopBadge = Kit.badge(shop)
 	shopBadge:set(nil)
 	badges.Shop = shopBadge
+	tileButtons.Shop = shop
 	Kit.onClick(shop, function()
 		togglePanel("Shop")
 	end)

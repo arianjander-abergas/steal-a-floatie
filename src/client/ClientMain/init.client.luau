@@ -1,13 +1,14 @@
 --[[
 	Floatie Farm — ClientMain (LocalScript in StarterPlayer.StarterPlayerScripts)
-	Boots the client: builds the three screens, mounts the HUD, panels and
-	toasts, starts the effects, and runs the slow UI loop.
+	Boots the client: builds the screens, mounts the HUD, the roll buttons,
+	panels and toasts, starts the world effects, and runs the slow UI loop.
 	Each feature lives in its own ModuleScript child of this script.
 
 	Screens (all Kit canvases, see Kit.createScreen):
-	  FloatieHUD     DisplayOrder 1    HUD + the boxes under the top bar
-	  FloatiePanels  DisplayOrder 5    Shop / Rebirth / Codes
-	  FloatieToasts  DisplayOrder 10   toasts (above open panels)
+	  FloatieHUD     DisplayOrder 1    HUD, roll buttons, the boxes under the top bar
+	  FloatiePanels  DisplayOrder 5    Shop / Rebirth / Codes / ...
+	  FloatieReveal  DisplayOrder 8    the big reveal of a rare pull
+	  FloatieToasts  DisplayOrder 10   toasts (above everything)
 ]]
 
 local StarterGui = game:GetService("StarterGui")
@@ -16,6 +17,7 @@ local Kit = require(script:WaitForChild("Kit"))
 local Sounds = require(script:WaitForChild("Sounds"))
 local Notify = require(script:WaitForChild("Notify"))
 local HUD = require(script:WaitForChild("HUD"))
+local RollUI = require(script:WaitForChild("RollUI"))
 local Shop = require(script:WaitForChild("Shop"))
 local Rebirth = require(script:WaitForChild("Rebirth"))
 local Codes = require(script:WaitForChild("Codes"))
@@ -23,6 +25,7 @@ local EventBanner = require(script:WaitForChild("EventBanner"))
 local Tutorial = require(script:WaitForChild("Tutorial"))
 local Prompts = require(script:WaitForChild("Prompts"))
 local Effects = require(script:WaitForChild("Effects"))
+local Conveyor = require(script:WaitForChild("Conveyor"))
 
 -- run a step; a broken module warns once instead of stopping the rest
 local warned = {}
@@ -50,6 +53,7 @@ Kit.setSoundPlayer(Sounds.play)
 ---------------------------------------------------------------------
 local _, hudCanvas = Kit.createScreen("FloatieHUD", 1)
 local _, panelCanvas = Kit.createScreen("FloatiePanels", 5)
+local _, revealCanvas = Kit.createScreen("FloatieReveal", 8)
 local _, toastCanvas = Kit.createScreen("FloatieToasts", 10)
 
 ---------------------------------------------------------------------
@@ -77,7 +81,7 @@ local function togglePanel(name)
 	end
 end
 
--- stalls always open (never close) their panel
+-- stalls and buttons that should always open (never close) their panel
 local function openPanel(name)
 	local panel = panels[name]
 	if panel then
@@ -91,18 +95,30 @@ local topStack = hudCanvas -- fallback if the HUD fails to mount
 safe("HUD.mount", function()
 	topStack = HUD.mount(hudCanvas, { togglePanel = togglePanel }).topStack
 end)
+safe("Notify.follow", Notify.follow, topStack)
+safe("RollUI.mount", RollUI.mount, hudCanvas, revealCanvas, { openPanel = openPanel })
 
 ---------------------------------------------------------------------
--- 4. boxes under the top bar, effects
+-- 4. boxes under the top bar, world effects
 ---------------------------------------------------------------------
 safe("EventBanner.mount", EventBanner.mount, topStack)
 safe("Effects.start", Effects.start)
+safe("Conveyor.start", Conveyor.start)
+
+-- what the tutorial arrow can point at
+local function findTarget(name)
+	local area = RollUI.area()
+	if area and area:FindFirstChild(name) then
+		return area[name]
+	end
+	return HUD.getTile(name)
+end
 
 ---------------------------------------------------------------------
 -- 5. these wait for workspace.Map.Bases, so they go last
 ---------------------------------------------------------------------
 safe("Prompts.start", Prompts.start, { openPanel = openPanel })
-safe("Tutorial.mount", Tutorial.mount, topStack)
+safe("Tutorial.mount", Tutorial.mount, hudCanvas, findTarget)
 
 ---------------------------------------------------------------------
 -- 6. slow UI loop (every 0.2 s)

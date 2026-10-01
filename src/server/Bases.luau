@@ -26,6 +26,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local Formulas = require(Shared:WaitForChild("Formulas"))
 local FloatieModel = require(Shared:WaitForChild("FloatieModel"))
+local PumpModel = require(Shared:WaitForChild("PumpModel"))
 local Core = require(script.Parent.Core)
 local Economy = require(script.Parent.Economy)
 
@@ -240,6 +241,26 @@ function Bases.refreshBest(player)
 end
 
 ---------------------------------------------------------------------
+-- The Pump Machine: the equipped pump stands on the platform at the back
+---------------------------------------------------------------------
+function Bases.refreshPump(player)
+	local base = Bases.get(player)
+	local prof = Core.profiles[player]
+	if not base or not prof or not base.pumpFolder then
+		return
+	end
+	local tier = prof.data.pumps.equipped
+	if base.pumpTier == tier then
+		return
+	end
+	base.pumpTier = tier
+	base.pumpFolder:ClearAllChildren()
+	local model = PumpModel.Build(tier)
+	model:PivotTo(base.pumpSpot)
+	model.Parent = base.pumpFolder
+end
+
+---------------------------------------------------------------------
 -- Owners
 ---------------------------------------------------------------------
 local function setOwnerText(base, text)
@@ -284,13 +305,30 @@ function Bases.release(index)
 	for slot in ipairs(base.slots) do
 		paintPad(base, slot, false)
 	end
+	-- an empty base shows the basic Hand Pump
+	if base.pumpFolder and base.pumpTier ~= 1 then
+		base.pumpTier = 1
+		base.pumpFolder:ClearAllChildren()
+		local model = PumpModel.Build(1)
+		model:PivotTo(base.pumpSpot)
+		model.Parent = base.pumpFolder
+	end
 end
 
--- the pedestal follows your Floaties
+-- the pedestal follows your Floaties; the pump follows the one you equip
 Core.FloatiesChanged:Connect(function(player)
 	if player.Parent then
 		Bases.refreshBest(player)
 	end
+end)
+Core.StatsChanged:Connect(function(player)
+	if player.Parent then
+		Bases.refreshPump(player)
+	end
+end)
+Core.PlayerLoaded:Connect(function(player)
+	Bases.refreshPump(player)
+	Bases.refreshBest(player)
 end)
 
 -- labels show Air/s with your Cash: refresh them every few seconds

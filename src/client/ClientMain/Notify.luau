@@ -10,6 +10,7 @@
 
 	API:
 	  Notify.mount(canvas)        -- builds the "Toasts" holder, listens to Remotes.Notify
+	  Notify.follow(frame)        -- sit just below this frame's content (the HUD's TopStack)
 	  Notify.toast(text, kind?)   -- works before mount too (queued, up to 5)
 ]]
 
@@ -108,19 +109,20 @@ end
 ---------------------------------------------------------------------
 
 -- Notify.mount(canvas) — canvas = the FloatieToasts Kit canvas.
--- Bottom-center, 340x116 virtual px: room for 4 toasts of 26 px, and the
--- bottom offset keeps them above the Backpack hotbar (see the layout table
--- in the Stage 1 contract, section 5.3).
+-- Top-center, 340x116 virtual px: room for 4 toasts of 26 px. It starts
+-- under the top bar; Notify.follow keeps it under the event banner and
+-- tutorial boxes, so the bottom of the screen stays free for rolling.
+local TOP_Y = 58
 function Notify.mount(canvas)
 	if holder then
 		return
 	end
 	holder = Kit.make("Frame", {
-		Name = "Toasts", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -84),
+		Name = "Toasts", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, TOP_Y),
 		Size = UDim2.fromOffset(340, HOLDER_HEIGHT), BackgroundTransparency = 1,
 	}, canvas)
 	Kit.make("UIListLayout", {
-		VerticalAlignment = Enum.VerticalAlignment.Bottom, HorizontalAlignment = Enum.HorizontalAlignment.Center,
+		VerticalAlignment = Enum.VerticalAlignment.Top, HorizontalAlignment = Enum.HorizontalAlignment.Center,
 		Padding = UDim.new(0, GAP), SortOrder = Enum.SortOrder.LayoutOrder,
 	}, holder)
 
@@ -132,6 +134,22 @@ function Notify.mount(canvas)
 	for _, item in ipairs(pending) do
 		show(item[1], item[2])
 	end
+end
+
+-- Notify.follow(frame) — frame has a UIListLayout (the HUD's TopStack): the
+-- toasts sit 6 px below whatever it shows right now
+function Notify.follow(frame)
+	local layout = frame and frame:FindFirstChildOfClass("UIListLayout")
+	if not holder or not layout then
+		return
+	end
+	local function place()
+		local h = layout.AbsoluteContentSize.Y / math.max(Kit.getScale(), 0.01)
+		holder.Position = UDim2.new(0.5, 0, 0, TOP_Y + (if h > 1 then h + 6 else 0))
+	end
+	layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(place)
+	Kit.ScaleChanged:Connect(place)
+	place()
 end
 
 return Notify

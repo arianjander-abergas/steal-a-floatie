@@ -17,6 +17,7 @@
 	  Economy      Luck / Cash / income math + the income loop
 	  Bases        who owns which base, Floatie models on slots
 	  Floaties     add / equip / level up / sell / lock
+	  Rolling      the pull: luck, mutations, Auto Roll, the conveyor ride
 	  Grant        gives rewards (Air, potions, tokens, Floaties...)
 	  Events       random server events
 	  Rewards      daily + playtime rewards, codes
@@ -41,6 +42,7 @@ local MapBuilder = require(ServerFolder:WaitForChild("MapBuilder"))
 local Economy = require(ServerFolder:WaitForChild("Economy"))
 local Bases = require(ServerFolder:WaitForChild("Bases"))
 require(ServerFolder:WaitForChild("Floaties"))
+require(ServerFolder:WaitForChild("Rolling"))
 require(ServerFolder:WaitForChild("Grant"))
 local Events = require(ServerFolder:WaitForChild("Events"))
 require(ServerFolder:WaitForChild("Rewards"))

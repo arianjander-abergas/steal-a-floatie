@@ -5,6 +5,8 @@
 	  • Rainbow Floaties cycling their colors (runs on each client, saves bandwidth)
 	  • every Floatie bobbing and squishing like a real balloon (Config.Feel)
 	  • the conveyor chevrons' light wave and the Tower's bobbing giant balloon
+	  • pump machines: spinning fans, flickering storm light, drifting aurora colors
+	  • a quick over-inflate wobble when a Floatie grows a size (its GrewAt attribute)
 
 	API:
 	  Effects.start()
@@ -118,6 +120,7 @@ local function startFeel()
 	RunService.RenderStepped:Connect(function()
 		local camPos = workspace.CurrentCamera.CFrame.Position
 		local t = os.clock()
+		local serverNow = workspace:GetServerTimeNow()
 		for _, model in ipairs(CollectionService:GetTagged("Floatie")) do
 			local root = model.PrimaryPart
 			if root and model:IsDescendantOf(workspace) then
@@ -130,6 +133,14 @@ local function startFeel()
 					if (root.Position - camPos).Magnitude <= Feel.AnimDistance then
 						local s = math.sin(t * Feel.SquishSpeed + info.phase) * Feel.SquishAmount
 						local lift = Feel.BobHeight * (0.5 + 0.5 * math.sin(t * Feel.BobSpeed + info.phase))
+						-- just grew a size (Level Up milestone): a quick over-inflate wobble
+						local grewAt = model:GetAttribute("GrewAt")
+						local age = if grewAt then serverNow - grewAt else math.huge
+						if age >= 0 and age < 0.9 then
+							local u = age / 0.9
+							local pulse = 0.3 * math.sin(u * math.pi * 2.5) * (1 - u)
+							s += pulse
+						end
 						applyFeel(info, 1 + s, 1 - s * 0.5, lift)
 						info.active = true
 					elseif info.active then
@@ -166,8 +177,31 @@ local function startMap()
 	end)
 
 	local accum = 0
+	local aurora = {
+		Color3.fromRGB(120, 255, 200), Color3.fromRGB(90, 200, 255), Color3.fromRGB(190, 120, 255), Color3.fromRGB(120, 255, 200),
+	}
 	RunService.RenderStepped:Connect(function(dt)
 		local t = os.clock()
+		local camPos = workspace.CurrentCamera.CFrame.Position
+		-- pump machines: jet fans spin, storm light flickers, aurora ribbons drift
+		for _, p in ipairs(CollectionService:GetTagged("Spin")) do
+			if p:IsA("BasePart") and (p.Position - camPos).Magnitude < CHEVRON_DISTANCE then
+				p.CFrame *= CFrame.Angles(dt * 9, 0, 0)
+			end
+		end
+		for _, p in ipairs(CollectionService:GetTagged("Flicker")) do
+			local light = p:FindFirstChildOfClass("PointLight")
+			if light then
+				light.Enabled = math.noise(t * 6, p.Position.X) > 0.05
+			end
+		end
+		for _, p in ipairs(CollectionService:GetTagged("AuroraCycle")) do
+			if p:IsA("BasePart") then
+				local x = ((t * 0.15 + (p:GetAttribute("Phase") or 0)) % 1) * 3
+				local i = math.floor(x)
+				p.Color = aurora[i + 1]:Lerp(aurora[i + 2], x - i)
+			end
+		end
 		for p, rest in pairs(bobParts) do
 			if p.Parent then
 				p.CFrame = rest * CFrame.new(0, math.sin(t * 0.7) * BOB_HEIGHT, 0) * CFrame.Angles(0, math.sin(t * 0.3) * 0.08, 0)
@@ -180,7 +214,6 @@ local function startMap()
 			return
 		end
 		accum = 0
-		local camPos = workspace.CurrentCamera.CFrame.Position
 		for _, arm in ipairs(CollectionService:GetTagged("Chevron")) do
 			if (arm.Position - camPos).Magnitude < CHEVRON_DISTANCE then
 				local step = arm:GetAttribute("Step") or 0
