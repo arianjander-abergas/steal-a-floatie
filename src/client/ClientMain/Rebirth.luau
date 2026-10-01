@@ -1,9 +1,8 @@
 --[[
-	Steal a Floatie — Rebirth (ModuleScript child of the ClientMain LocalScript)
-	The Rebirth panel: shows your rebirth count, the next cost and the reward,
-	plus a big REBIRTH button. The server checks the cost; the button only
-	turns orange when you can afford it and grey when you can't (it stays
-	clickable either way, same as v0.1.2).
+	Floatie Farm — Rebirth (ModuleScript child of the ClientMain LocalScript)
+	The Rebirth panel: your rebirth count, the cost, what you keep and what
+	you get, plus a big REBIRTH button. The server checks the cost; the button
+	only turns orange when you can afford it and grey when you can't.
 
 	API:
 	  Rebirth.mount(canvas) -> Panel   -- builds the panel on the "FloatiePanels" Kit canvas
@@ -13,12 +12,16 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local Formulas = require(Shared:WaitForChild("Formulas"))
 local Kit = require(script.Parent.Kit)
-local RebirthRE = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Rebirth")
+local Notify = require(script.Parent.Notify)
+local RebirthRF = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Rebirth")
 
 local player = Players.LocalPlayer
 local C = Config.UI
+local R = Config.Rebirth
 
 local Rebirth = {}
 
@@ -28,6 +31,7 @@ local Rebirth = {}
 local panel = nil      -- the Kit Panel
 local infoLabel = nil  -- the rebirth count / cost / reward text
 local rebirthButton = nil
+local busy = false
 
 ---------------------------------------------------------------------
 -- Refresh: text + button color from the Rebirths and Air attributes
@@ -37,9 +41,11 @@ local function refresh()
 		return -- not mounted yet
 	end
 	local n = player:GetAttribute("Rebirths") or 0
-	local cost = Config.RebirthCost(n)
-	infoLabel.Text = ("Rebirths: %d\nCost: %s Air\n\nReward: +%d%% Air forever, +%d pedestals\n\nResets your Air and Floaties — you KEEP your best Floatie.")
-		:format(n, Config.Format(cost), math.floor(Config.RebirthIncomeBonus * 100), Config.PedestalsPerRebirth)
+	local cost = Formulas.rebirthCost(n)
+	local slots = math.min(R.SlotsEach, math.max(0, R.SlotsMax - n * R.SlotsEach))
+	infoLabel.Text = ("Rebirths: %d\nCost: ALL your Air (at least %s)\n\nReward: +%d%% Cash, +%d%% Luck%s, %d Grade Tokens\nYou keep your Floaties, pumps and upgrades.")
+		:format(n, Config.Format(cost), math.floor(R.CashBonus * 100), math.floor(R.LuckBonus * 100),
+			if slots > 0 then ", +" .. slots .. " slots" else "", R.GradeTokens)
 	local canAfford = (player:GetAttribute("Air") or 0) >= cost
 	Kit.setButtonColor(rebirthButton, canAfford and C.Orange or C.Grey)
 end
@@ -67,7 +73,7 @@ function Rebirth.mount(canvas)
 		Size = UDim2.new(1, 0, 0, 170),
 		TextWrapped = true,
 		TextYAlignment = Enum.TextYAlignment.Top,
-	}, { maxTextSize = 24 })
+	}, { maxTextSize = 22 })
 
 	rebirthButton = Kit.button(body, {
 		Name = "RebirthButton",
@@ -77,8 +83,18 @@ function Rebirth.mount(canvas)
 	}, { text = "REBIRTH", color = C.Grey })
 
 	Kit.onClick(rebirthButton, function()
-		RebirthRE:FireServer()
-		panel:close()
+		if busy then
+			return
+		end
+		busy = true
+		local ok, success, msg = pcall(RebirthRF.InvokeServer, RebirthRF)
+		busy = false
+		if ok then
+			Notify.toast(msg or "", if success then "success" else "error")
+			if success then
+				panel:close()
+			end
+		end
 	end)
 
 	refresh()

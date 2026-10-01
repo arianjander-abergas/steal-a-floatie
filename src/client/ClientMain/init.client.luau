@@ -1,7 +1,7 @@
 --[[
-	Steal a Floatie — ClientMain (LocalScript in StarterPlayer.StarterPlayerScripts)
+	Floatie Farm — ClientMain (LocalScript in StarterPlayer.StarterPlayerScripts)
 	Boots the client: builds the three screens, mounts the HUD, panels and
-	toasts, starts darts/knockback/effects, and runs the slow UI loop.
+	toasts, starts the effects, and runs the slow UI loop.
 	Each feature lives in its own ModuleScript child of this script.
 
 	Screens (all Kit canvases, see Kit.createScreen):
@@ -9,6 +9,8 @@
 	  FloatiePanels  DisplayOrder 5    Shop / Rebirth / Codes
 	  FloatieToasts  DisplayOrder 10   toasts (above open panels)
 ]]
+
+local StarterGui = game:GetService("StarterGui")
 
 local Kit = require(script:WaitForChild("Kit"))
 local Sounds = require(script:WaitForChild("Sounds"))
@@ -18,11 +20,8 @@ local Shop = require(script:WaitForChild("Shop"))
 local Rebirth = require(script:WaitForChild("Rebirth"))
 local Codes = require(script:WaitForChild("Codes"))
 local EventBanner = require(script:WaitForChild("EventBanner"))
-local CarryBox = require(script:WaitForChild("CarryBox"))
 local Tutorial = require(script:WaitForChild("Tutorial"))
 local Prompts = require(script:WaitForChild("Prompts"))
-local Darts = require(script:WaitForChild("Darts"))
-local Knockback = require(script:WaitForChild("Knockback"))
 local Effects = require(script:WaitForChild("Effects"))
 
 -- run a step; a broken module warns once instead of stopping the rest
@@ -34,6 +33,11 @@ local function safe(name, fn, ...)
 		warn(("[ClientMain] %s failed: %s"):format(name, tostring(err)))
 	end
 end
+
+-- no tools in this game: hide the hotbar
+pcall(function()
+	StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
+end)
 
 ---------------------------------------------------------------------
 -- 1. sounds first so every Kit button can click
@@ -79,12 +83,9 @@ safe("HUD.mount", function()
 end)
 
 ---------------------------------------------------------------------
--- 4. boxes under the top bar, gameplay helpers
+-- 4. boxes under the top bar, effects
 ---------------------------------------------------------------------
 safe("EventBanner.mount", EventBanner.mount, topStack)
-safe("CarryBox.mount", CarryBox.mount, topStack)
-safe("Darts.start", Darts.start)
-safe("Knockback.start", Knockback.start)
 safe("Effects.start", Effects.start)
 
 ---------------------------------------------------------------------
@@ -94,13 +95,12 @@ safe("Prompts.start", Prompts.start)
 safe("Tutorial.mount", Tutorial.mount, topStack)
 
 ---------------------------------------------------------------------
--- 6. slow UI loop (same order as v0.1.2, every 0.2 s)
+-- 6. slow UI loop (every 0.2 s)
 ---------------------------------------------------------------------
 local STEPS = {
 	{ "Tutorial.update", Tutorial.update },
 	{ "Prompts.update", Prompts.update },
 	{ "EventBanner.update", EventBanner.update },
-	{ "CarryBox.update", CarryBox.update },
 	{ "Rebirth.update", Rebirth.update },
 	{ "HUD.update", HUD.update },
 }

@@ -676,7 +676,7 @@ function Kit.panel(parent, opts)
 		AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.5, 20),
 		Size = UDim2.fromOffset(size.X, size.Y), BackgroundColor3 = WHITE, BorderSizePixel = 0,
 		Visible = false,
-		Active = true, -- clicks on a panel must not fire the Dart Blaster
+		Active = true, -- clicks on a panel must not reach the world behind it
 	})
 	Kit.round(frame, 18)
 	Kit.gradient(frame, C.PanelTop, C.PanelBottom)

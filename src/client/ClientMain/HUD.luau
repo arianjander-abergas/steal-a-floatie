@@ -30,7 +30,6 @@ local UserInputService = game:GetService("UserInputService")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local Kit = require(script.Parent.Kit)
-local Notify = require(script.Parent.Notify)
 
 local player = Players.LocalPlayer
 local C = Config.UI
@@ -210,9 +209,6 @@ function HUD.mount(canvas, actions)
 			actions.togglePanel(name)
 		end
 	end
-	local function comingSoon()
-		Notify.toast("Coming soon!", "info")
-	end
 
 	-----------------------------------------------------------------
 	-- TopBar: Sell / Home / Plaza (3 x 96 + 2 x 12 = 312 wide)
@@ -236,39 +232,39 @@ function HUD.mount(canvas, actions)
 	local home = topButton("Home", "🏠 Home", C.Blue, 2)
 	local plaza = topButton("Plaza", "🏝️ Plaza", C.Purple, 3)
 
-	Kit.onClick(sell, comingSoon)  -- selling from the HUD arrives in Stage 4
-	Kit.onClick(plaza, comingSoon) -- the Plaza arrives in Stage 9
-
-	-- Home asks the server to teleport us to our base spawn. The server has
-	-- the real rate limit; this client-side one just avoids spamming it.
-	local lastHome = -math.huge
+	-- each button asks the server to teleport us (Home = our base, Plaza =
+	-- the middle of the map, Sell = the Sell stall). The server has the real
+	-- rate limit; this client-side one just avoids spamming it.
+	local lastTeleport = -math.huge
 	local warnedNoRemote = false
-	Kit.onClick(home, function()
+	local function teleport(target)
 		local clock = os.clock()
-		if clock - lastHome < HOME_COOLDOWN then
+		if clock - lastTeleport < HOME_COOLDOWN then
 			return
 		end
-		lastHome = clock
+		lastTeleport = clock
 		-- looked up at click time (never WaitForChild) so an old server can't hang the HUD
 		local remotes = ReplicatedStorage:FindFirstChild("Remotes")
-		local remote = remotes and remotes:FindFirstChild("RequestHome")
+		local remote = remotes and remotes:FindFirstChild("Teleport")
 		if remote and remote:IsA("RemoteEvent") then
-			remote:FireServer()
+			remote:FireServer(target)
 		elseif not warnedNoRemote then
 			warnedNoRemote = true
-			warn("[HUD] Remotes.RequestHome is missing, so the Home button does nothing")
+			warn("[HUD] Remotes.Teleport is missing, so the top buttons do nothing")
 		end
+	end
+	Kit.onClick(sell, function()
+		teleport("Sell")
+	end)
+	Kit.onClick(home, function()
+		teleport("Home")
+	end)
+	Kit.onClick(plaza, function()
+		teleport("Plaza")
 	end)
 
-	-- no Home while carrying a stolen Floatie (the server refuses it too)
-	local function refreshHome()
-		Kit.setEnabled(home, player:GetAttribute("CarryEndsAt") == nil)
-	end
-	player:GetAttributeChangedSignal("CarryEndsAt"):Connect(refreshHome)
-	refreshHome()
-
 	-----------------------------------------------------------------
-	-- TopStack: CORE puts the EventBanner / CarryBox / TutorialBox in
+	-- TopStack: init puts the EventBanner / TutorialBox in
 	-- here; hidden boxes take no space in the list
 	-----------------------------------------------------------------
 	local topStack = Kit.make("Frame", {

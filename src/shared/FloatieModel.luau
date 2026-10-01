@@ -405,25 +405,41 @@ function FloatieModel.SetAnchored(model, anchored)
 end
 
 --[[
-	SetLabel(model, def, mutationId, stageIndex, incomePerSec, extraText)
+	SetLabel(model, f, incomePerSec)
+	f = a Floatie record { id, mut, level, grade, trait } (level etc. may be missing)
+	Lines: "1 in 24K" (Rare and up) / RARITY / [Mutation] Name / Lv · size · grade · trait / +Air/s
 ]]
-function FloatieModel.SetLabel(model, def, mutId, stageIndex, incomePerSec, extra)
+local SIZE_NAMES = { "Deflated", "Puffy", "Round", "Chonky", "MEGA" }
+function FloatieModel.SetLabel(model, f, incomePerSec)
 	local gui = model.PrimaryPart and model.PrimaryPart:FindFirstChild("Label")
-	if not gui then
+	local def = Config.FloatieById[f.id]
+	if not gui or not def then
 		return
 	end
 	local rarity = Config.Rarities[def.rarity]
-	local stage = Config.Stages[stageIndex] or Config.Stages[1]
-	gui.NameLine.Text = def.name
+	local level = f.level or 1
+	local sizeName = SIZE_NAMES[1]
+	for i, size in ipairs(Config.Sizes) do
+		if level >= size.level then
+			sizeName = size.name or SIZE_NAMES[i]
+		end
+	end
+	local mut = f.mut or "Normal"
+	gui.NameLine.Text = if mut ~= "Normal" then mut .. " " .. def.name else def.name
 	gui.Rarity.Text = string.upper(def.rarity)
 	gui.Rarity.TextColor3 = if def.rarity == "Secret" then WHITE else rarity.color
-	local info = stage.name
-	if mutId and mutId ~= "Normal" then
-		info = mutId .. " • " .. info
+	local info = "Lv " .. level .. " • " .. sizeName
+	if f.grade and f.grade ~= "C" then
+		info ..= " • " .. f.grade
+	end
+	local trait = f.trait and Config.TraitById[f.trait]
+	if trait then
+		info ..= " • " .. trait.name
 	end
 	gui.Info.Text = info
-	gui.Income.Text = "+" .. Config.Format(incomePerSec) .. " Air/s"
-	gui.Extra.Text = extra or ""
+	gui.Income.Text = "+" .. Config.Format(incomePerSec or 0) .. " Air/s"
+	gui.Extra.Text = if rarity.order >= 3 then Config.FormatOdds(def.odds) else ""
+	gui.Extra.TextColor3 = if def.rarity == "Secret" then WHITE else rarity.color
 end
 
 -- Confetti burst + "POP!" text at a position (server-side, replicates to everyone)
