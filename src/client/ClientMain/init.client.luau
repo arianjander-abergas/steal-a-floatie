@@ -77,6 +77,16 @@ local function togglePanel(name)
 	end
 end
 
+-- stalls always open (never close) their panel
+local function openPanel(name)
+	local panel = panels[name]
+	if panel then
+		panel:open()
+	else
+		Notify.toast("Coming soon!", "info")
+	end
+end
+
 local topStack = hudCanvas -- fallback if the HUD fails to mount
 safe("HUD.mount", function()
 	topStack = HUD.mount(hudCanvas, { togglePanel = togglePanel }).topStack
@@ -91,7 +101,7 @@ safe("Effects.start", Effects.start)
 ---------------------------------------------------------------------
 -- 5. these wait for workspace.Map.Bases, so they go last
 ---------------------------------------------------------------------
-safe("Prompts.start", Prompts.start)
+safe("Prompts.start", Prompts.start, { openPanel = openPanel })
 safe("Tutorial.mount", Tutorial.mount, topStack)
 
 ---------------------------------------------------------------------

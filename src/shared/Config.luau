@@ -47,7 +47,7 @@ Config.SellMult = 20                    -- selling pays income x 20 x grade x mu
 ---------------------------------------------------------------------
 -- The system files (ConfigParts), merged in
 ---------------------------------------------------------------------
-local PARTS = { "UI", "Floaties", "Rolling", "Progression", "Rewards", "Robux" }
+local PARTS = { "UI", "Floaties", "Rolling", "Progression", "Rewards", "Robux", "Map" }
 local partsFolder = script.Parent:WaitForChild("ConfigParts")
 for _, name in ipairs(PARTS) do
 	local part = require(partsFolder:WaitForChild(name))

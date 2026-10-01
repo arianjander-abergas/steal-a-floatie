@@ -22,6 +22,7 @@
 	  Rewards      daily + playtime rewards, codes
 	  Rebirth      rebirth
 	  Shop         game passes + developer products
+	  Plaza        leaderboards, best Floatie in the server, event sign, Tower door
 	  Admin        ;chat commands for testing
 ]]
 
@@ -45,6 +46,7 @@ local Events = require(ServerFolder:WaitForChild("Events"))
 require(ServerFolder:WaitForChild("Rewards"))
 require(ServerFolder:WaitForChild("Rebirth"))
 local Shop = require(ServerFolder:WaitForChild("Shop"))
+local Plaza = require(ServerFolder:WaitForChild("Plaza"))
 require(ServerFolder:WaitForChild("Admin"))
 
 ---------------------------------------------------------------------
@@ -52,6 +54,7 @@ require(ServerFolder:WaitForChild("Admin"))
 ---------------------------------------------------------------------
 local map = MapBuilder.Build()
 Bases.init(map)
+Plaza.init(map)
 
 -- Server Luck Boost (Robux): Lucky Breeze for everyone
 Shop.handle("ServerLuckBoost", function(player)
@@ -107,6 +110,16 @@ local function onCharacterAdded(player, character)
 		return
 	end
 	hum.WalkSpeed = Economy.walkSpeed(player)
+	-- every (re)spawn starts on your own base's spawn pad, facing your Floaties
+	local root = character:WaitForChild("HumanoidRootPart", 5)
+	local base = Bases.get(player)
+	if root and base then
+		task.defer(function()
+			if character.Parent then
+				character:PivotTo(base.spawn.CFrame * CFrame.new(0, 4, 0))
+			end
+		end)
+	end
 	if Core.hasPass(player, "VIP") then
 		local head = character:WaitForChild("Head", 5)
 		if head then
@@ -198,7 +211,6 @@ local function onPlayerAdded(player)
 	player:SetAttribute("BaseIndex", baseIndex)
 	-- brand-new players get the tutorial (see ClientMain/Tutorial)
 	player:SetAttribute("ShowTutorial", data.totalRolls == 0 and #data.floaties == 0 and data.rebirths == 0)
-	player.RespawnLocation = Bases.get(player).spawn
 
 	prof.loaded = true
 	Bases.refresh(player)

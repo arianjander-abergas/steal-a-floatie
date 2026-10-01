@@ -14,6 +14,7 @@
 	  Bases.slotPart(player, slot) the slot pad part
 	  Bases.model(player, uid)     the model of a placed Floatie
 	  Bases.refreshLabels(player)  income text on every model (Cash changed)
+	  Bases.refreshBest(player)    the best-Floatie pedestal at the entrance
 
 	Models have attributes OwnerUserId and Uid; the client uses them to open
 	the Floatie card when you click / press E on your own Floatie.
@@ -40,6 +41,7 @@ function Bases.init(map)
 		base.owner = nil
 		base.models = {} -- [uid] = Model
 		bases[i] = base
+		Bases.release(i) -- empty base look: grey pads with padlocks
 	end
 end
 
@@ -80,18 +82,25 @@ function Bases.freeSlot(player)
 	return nil
 end
 
--- unlocked pads take the base color, locked ones go grey
+local function paintPad(base, slot, unlocked)
+	local pad = base.slots[slot]
+	pad.Color = if unlocked then base.color else LOCKED_COLOR
+	pad:SetAttribute("Unlocked", unlocked)
+	local lock = base.lockLabels and base.lockLabels[slot]
+	if lock then
+		lock.Parent.Enabled = not unlocked -- the 🔒 label's SurfaceGui
+	end
+end
+
+-- unlocked pads take the base color, locked ones go grey with a padlock
 function Bases.paintPads(player)
 	local base = Bases.get(player)
 	if not base then
 		return
 	end
 	local count = Economy.slotCount(player)
-	for slot, pad in ipairs(base.slots) do
-		local unlocked = slot <= count
-		pad.Color = if unlocked then base.color else LOCKED_COLOR
-		pad.Material = if unlocked then Enum.Material.SmoothPlastic else Enum.Material.Slate
-		pad:SetAttribute("Unlocked", unlocked)
+	for slot in ipairs(base.slots) do
+		paintPad(base, slot, slot <= count)
 	end
 end
 
@@ -180,14 +189,72 @@ function Bases.refreshLabels(player)
 end
 
 ---------------------------------------------------------------------
+-- The best-Floatie pedestal at the entrance
+---------------------------------------------------------------------
+-- the Floatie earning the most (on a slot or not), or nil
+function Bases.bestFloatie(player)
+	local prof = Core.profiles[player]
+	if not prof then
+		return nil
+	end
+	local best, bestIncome = nil, -1
+	for _, f in ipairs(prof.data.floaties) do
+		local income = Formulas.baseIncome(f)
+		if income > bestIncome then
+			best, bestIncome = f, income
+		end
+	end
+	return best
+end
+
+function Bases.refreshBest(player)
+	local base = Bases.get(player)
+	if not base or not base.bestSpot then
+		return
+	end
+	local f = Bases.bestFloatie(player)
+	local key = f and (f.uid .. "|" .. f.level .. "|" .. f.mut) or ""
+	if base.bestKey == key then
+		return
+	end
+	base.bestKey = key
+	if base.bestModel then
+		base.bestModel:Destroy()
+		base.bestModel = nil
+	end
+	if not f then
+		base.bestLabel.Text = "⭐ BEST FLOATIE"
+		return
+	end
+	local def = Config.FloatieById[f.id]
+	local model = FloatieModel.Build(def, f.mut, 1.15)
+	FloatieModel.SetAnchored(model, true)
+	model:PivotTo(base.bestSpot)
+	local label = model.PrimaryPart:FindFirstChild("Label")
+	if label then
+		label:Destroy() -- the pedestal has its own sign
+	end
+	model.Parent = base.floatieFolder
+	base.bestModel = model
+	base.bestLabel.Text = "⭐ BEST: " .. (if f.mut ~= "Normal" then f.mut .. " " else "") .. def.name
+end
+
+---------------------------------------------------------------------
 -- Owners
 ---------------------------------------------------------------------
+local function setOwnerText(base, text)
+	base.signLabel.Text = text
+	for _, label in ipairs(base.archLabels or {}) do
+		label.Text = text
+	end
+end
+
 function Bases.assign(player)
 	for i, base in ipairs(bases) do
 		if not base.owner then
 			base.owner = player
 			base.folder:SetAttribute("OwnerUserId", player.UserId)
-			base.signLabel.Text = player.DisplayName .. "'s Base"
+			setOwnerText(base, player.DisplayName .. "'s Base")
 			return i
 		end
 	end
@@ -203,15 +270,28 @@ function Bases.release(index)
 		model:Destroy()
 	end
 	base.models = {}
+	if base.bestModel then
+		base.bestModel:Destroy()
+		base.bestModel = nil
+	end
+	base.bestKey = nil
+	if base.bestLabel then
+		base.bestLabel.Text = "⭐ BEST FLOATIE"
+	end
 	base.owner = nil
 	base.folder:SetAttribute("OwnerUserId", 0)
-	base.signLabel.Text = "Empty Base"
-	for _, pad in ipairs(base.slots) do
-		pad.Color = LOCKED_COLOR
-		pad.Material = Enum.Material.Slate
-		pad:SetAttribute("Unlocked", false)
+	setOwnerText(base, "Empty Base")
+	for slot in ipairs(base.slots) do
+		paintPad(base, slot, false)
 	end
 end
+
+-- the pedestal follows your Floaties
+Core.FloatiesChanged:Connect(function(player)
+	if player.Parent then
+		Bases.refreshBest(player)
+	end
+end)
 
 -- labels show Air/s with your Cash: refresh them every few seconds
 task.spawn(function()

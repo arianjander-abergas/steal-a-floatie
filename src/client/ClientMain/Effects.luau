@@ -4,6 +4,7 @@
 	  • the "Pop" sound where a Floatie pops
 	  • Rainbow Floaties cycling their colors (runs on each client, saves bandwidth)
 	  • every Floatie bobbing and squishing like a real balloon (Config.Feel)
+	  • the conveyor chevrons' light wave and the Tower's bobbing giant balloon
 
 	API:
 	  Effects.start()
@@ -142,6 +143,55 @@ local function startFeel()
 end
 
 ---------------------------------------------------------------------
+-- The map: conveyor chevrons light up in a wave running towards the
+-- front of each base, and the giant balloon on the Tower bobs.
+-- Client-side only (nothing replicates), and only near the camera.
+---------------------------------------------------------------------
+local CHEVRON_DISTANCE = 220
+local BOB_HEIGHT = 1.6
+
+local function startMap()
+	local bobParts = {} -- part -> resting CFrame
+	local function trackBob(p)
+		if p:IsA("BasePart") then
+			bobParts[p] = p.CFrame
+		end
+	end
+	for _, p in ipairs(CollectionService:GetTagged("BobPart")) do
+		trackBob(p)
+	end
+	CollectionService:GetInstanceAddedSignal("BobPart"):Connect(trackBob)
+	CollectionService:GetInstanceRemovedSignal("BobPart"):Connect(function(p)
+		bobParts[p] = nil
+	end)
+
+	local accum = 0
+	RunService.RenderStepped:Connect(function(dt)
+		local t = os.clock()
+		for p, rest in pairs(bobParts) do
+			if p.Parent then
+				p.CFrame = rest * CFrame.new(0, math.sin(t * 0.7) * BOB_HEIGHT, 0) * CFrame.Angles(0, math.sin(t * 0.3) * 0.08, 0)
+			else
+				bobParts[p] = nil
+			end
+		end
+		accum += dt
+		if accum < 1 / 20 then
+			return
+		end
+		accum = 0
+		local camPos = workspace.CurrentCamera.CFrame.Position
+		for _, arm in ipairs(CollectionService:GetTagged("Chevron")) do
+			if (arm.Position - camPos).Magnitude < CHEVRON_DISTANCE then
+				local step = arm:GetAttribute("Step") or 0
+				local wave = 0.5 + 0.5 * math.sin(t * 5 - step * 0.75)
+				arm.Transparency = 0.75 - wave * 0.7
+			end
+		end
+	end)
+end
+
+---------------------------------------------------------------------
 -- Start
 ---------------------------------------------------------------------
 
@@ -154,6 +204,7 @@ function Effects.start()
 	startPops()
 	startRainbow()
 	startFeel()
+	startMap()
 end
 
 return Effects
