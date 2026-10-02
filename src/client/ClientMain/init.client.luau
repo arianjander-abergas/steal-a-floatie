@@ -27,6 +27,7 @@ local Sell = require(script:WaitForChild("Sell"))
 local FloatieCard = require(script:WaitForChild("FloatieCard"))
 local PumpShop = require(script:WaitForChild("PumpShop"))
 local Upgrades = require(script:WaitForChild("Upgrades"))
+local Reroll = require(script:WaitForChild("Reroll"))
 local EventBanner = require(script:WaitForChild("EventBanner"))
 local Tutorial = require(script:WaitForChild("Tutorial"))
 local Prompts = require(script:WaitForChild("Prompts"))
@@ -95,7 +96,12 @@ local function openCard(uid)
 	FloatieCard.open(uid)
 end
 
-local actions = { togglePanel = togglePanel, openPanel = openPanel, openCard = openCard }
+-- the Floatie card's Grade / Trait shortcuts
+local function openReroll(kind, uid)
+	Reroll.open(kind, uid)
+end
+
+local actions = { togglePanel = togglePanel, openPanel = openPanel, openCard = openCard, openReroll = openReroll }
 
 safe("Shop.mount", function()
 	panels.Shop = Shop.mount(panelCanvas)
@@ -117,6 +123,11 @@ safe("PumpShop.mount", function()
 end)
 safe("Upgrades.mount", function()
 	panels.Upgrades = Upgrades.mount(panelCanvas)
+end)
+safe("Reroll.mount", function()
+	local stands = Reroll.mount(panelCanvas)
+	panels.Grading = stands.Grading
+	panels.Traits = stands.Traits
 end)
 safe("FloatieCard.mount", FloatieCard.mount, panelCanvas, actions)
 

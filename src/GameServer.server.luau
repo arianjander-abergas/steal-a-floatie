@@ -24,6 +24,7 @@
 	  Rebirth      rebirth
 	  Shop         game passes + developer products
 	  Upgrades     the Upgrades window and the Pump Shop
+	  Reroll       the Grading and Traits stands
 	  Plaza        leaderboards, best Floatie in the server, event sign, Tower door
 	  Admin        ;chat commands for testing
 ]]
@@ -50,6 +51,7 @@ require(ServerFolder:WaitForChild("Rewards"))
 require(ServerFolder:WaitForChild("Rebirth"))
 local Shop = require(ServerFolder:WaitForChild("Shop"))
 require(ServerFolder:WaitForChild("Upgrades"))
+require(ServerFolder:WaitForChild("Reroll"))
 local Plaza = require(ServerFolder:WaitForChild("Plaza"))
 require(ServerFolder:WaitForChild("Admin"))
 
