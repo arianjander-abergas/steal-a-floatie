@@ -37,6 +37,7 @@ local Conveyor = require(script:WaitForChild("Conveyor"))
 local Boosts = require(script:WaitForChild("Boosts"))
 local Badges = require(script:WaitForChild("Badges"))
 local Offers = require(script:WaitForChild("Offers"))
+local TradePanel = require(script:WaitForChild("TradePanel"))
 
 -- run a step; a broken module warns once instead of stopping the rest
 local warned = {}
@@ -146,6 +147,10 @@ end)
 safe("Notify.follow", Notify.follow, topStack)
 safe("Boosts.mount", Boosts.mount, hudCanvas, rightStack)
 safe("Offers.mount", Offers.mount, rightStack, panelCanvas)
+-- after the HUD: it puts a padlock on the Trade tile
+safe("TradePanel.mount", function()
+	panels.Trade = TradePanel.mount(panelCanvas)
+end)
 safe("RollUI.mount", RollUI.mount, hudCanvas, revealCanvas, { openPanel = openPanel })
 
 ---------------------------------------------------------------------
@@ -186,6 +191,7 @@ local STEPS = {
 	{ "RewardsPanel.update", RewardsPanel.update },
 	{ "Badges.update", Badges.update },
 	{ "Offers.update", Offers.update },
+	{ "TradePanel.update", TradePanel.update },
 }
 task.spawn(function()
 	while true do

@@ -27,6 +27,7 @@
 	  Reroll       the Grading and Traits stands
 	  Index        Index milestones
 	  Potions      drinking potions
+	  Trading      player-to-player trades
 	  Plaza        leaderboards, best Floatie in the server, event sign, Tower door
 	  Admin        ;chat commands for testing
 ]]
@@ -56,6 +57,7 @@ require(ServerFolder:WaitForChild("Upgrades"))
 require(ServerFolder:WaitForChild("Reroll"))
 require(ServerFolder:WaitForChild("Index"))
 require(ServerFolder:WaitForChild("Potions"))
+require(ServerFolder:WaitForChild("Trading"))
 local Plaza = require(ServerFolder:WaitForChild("Plaza"))
 require(ServerFolder:WaitForChild("Admin"))
 

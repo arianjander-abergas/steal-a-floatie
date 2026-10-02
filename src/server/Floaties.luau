@@ -7,7 +7,8 @@
 	      spec = { id, mut?, level?, grade?, trait? }
 	      dest = "slot" | "backpack" | "sold" (no room anywhere, or below your Auto Sell rarity)
 	      opts.arriving = true: reserve the slot but let Rolling place the model when the
-	                      conveyor ride ends;  opts.noAutoSell = true: never auto-sell it
+	                      conveyor ride ends;  opts.noAutoSell = true: never auto-sell it;
+	      opts.force = true: never sold, even with a full Backpack (trades check room first)
 	  Floaties.find(player, uid) -> f, index
 	  Floaties.remove(player, uid)
 	  Floaties.discover(player, id, mut)       marks an Index entry
@@ -96,12 +97,12 @@ function Floaties.add(player, spec, opts)
 	-- Auto Sell: anything below the chosen rarity turns into Air at once
 	local autoSell = prof.data.settings.autoSell or 0
 	local rarityOrder = Config.Rarities[def.rarity].order
-	local sell = not opts.noAutoSell and autoSell > 0 and rarityOrder < autoSell and f.mut == "Normal"
+	local sell = not opts.noAutoSell and not opts.force and autoSell > 0 and rarityOrder < autoSell and f.mut == "Normal"
 	if not sell then
 		local slot = Bases.freeSlot(player)
 		if slot then
 			f.slot = slot
-		elseif Floaties.backpackCount(player) >= Economy.backpackSize(player) then
+		elseif not opts.force and Floaties.backpackCount(player) >= Economy.backpackSize(player) then
 			sell = true -- Backpack full
 		end
 	end
