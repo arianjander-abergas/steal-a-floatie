@@ -7,6 +7,8 @@
 	  • the conveyor chevrons' light wave and the Tower's bobbing giant balloon
 	  • pump machines: spinning fans, flickering storm light, drifting aurora colors
 	  • a quick over-inflate wobble when a Floatie grows a size (its GrewAt attribute)
+	  • blinking eyes, orbiting mini balloons, and the Secret / Cosmic tricks
+	    (Glitch, Supernova, Prism, StormFlash tags from ConfigParts/Floaties)
 
 	API:
 	  Effects.start()
@@ -61,13 +63,18 @@ local function startRainbow()
 end
 
 ---------------------------------------------------------------------
--- Floatie feel: every Floatie bobs and squishes like a real balloon.
--- Purely visual: it only changes each part's SpecialMesh Offset/Scale, so it
--- never fights the server over where a Floatie is. Tune it in Config.Feel.
+-- Floatie feel: every Floatie bobs and squishes like a real balloon,
+-- blinks, and plays its own trick (orbiting mini balloons, Glitchpup's
+-- jitter, Supernovasaur's swell). Purely visual: it only changes each
+-- part's SpecialMesh Offset/Scale, so it never fights the server over
+-- where a Floatie is. Tune it in Config.Feel.
 -- (Custom FloatieMeshes models have no SpecialMesh, so they stay still.)
 ---------------------------------------------------------------------
 local Feel = Config.Feel
-local feelCache = {} -- model -> { phase, active, parts = { { mesh, rel } } }
+local feelCache = {} -- model -> { phase, active, nextBlink, glitch, supernova, parts = { { mesh, rel, orbit?, eye? } } }
+
+local SUPERNOVA_EVERY = 4   -- seconds between Supernovasaur's bursts
+local SUPERNOVA_TIME = 0.6
 
 local function buildFeel(model)
 	local root = model.PrimaryPart
@@ -79,11 +86,24 @@ local function buildFeel(model)
 	for _, part in ipairs(model:GetChildren()) do
 		local mesh = part:IsA("BasePart") and part:FindFirstChildOfClass("SpecialMesh")
 		if mesh then
-			table.insert(parts, { mesh = mesh, rel = rootCF:ToObjectSpace(part.CFrame) })
+			local entry = { mesh = mesh, rel = rootCF:ToObjectSpace(part.CFrame) }
+			local radius = part:GetAttribute("OrbitRadius")
+			if radius then
+				entry.orbit = {
+					radius = radius, speed = part:GetAttribute("OrbitSpeed") or 1, phase = part:GetAttribute("OrbitPhase") or 0,
+					tilt = CFrame.Angles(part:GetAttribute("OrbitTilt") or 0, 0, 0), tick = part:GetAttribute("OrbitTick") == true,
+				}
+			end
+			entry.eye = string.sub(part.Name, 1, 3) == "Eye"
+			table.insert(parts, entry)
 		end
 	end
 	local pos = rootCF.Position
-	return { phase = (pos.X * 0.37 + pos.Z * 0.61) % (math.pi * 2), active = false, parts = parts }
+	return {
+		phase = (pos.X * 0.37 + pos.Z * 0.61) % (math.pi * 2), active = false, parts = parts,
+		nextBlink = os.clock() + math.random() * 4 + 1,
+		glitch = CollectionService:HasTag(model, "Glitch"), supernova = CollectionService:HasTag(model, "Supernova"),
+	}
 end
 
 -- how much a part's local axis v stretches when the model is scaled (sxz, sy, sxz)
@@ -91,14 +111,38 @@ local function axisScale(v, sy, sxz)
 	return math.sqrt((sxz * v.X) ^ 2 + (sy * v.Y) ^ 2 + (sxz * v.Z) ^ 2)
 end
 
--- stretch the model around its feet: sy = height factor, sxz = width factor, lift = bob
-local function applyFeel(info, sy, sxz, lift)
+-- stretch the model around its feet: sy = height factor, sxz = width factor, lift = bob.
+-- t = os.clock() (nil = the rest pose: no orbit / blink / jitter)
+local function applyFeel(info, sy, sxz, lift, t)
+	local blink = 1
+	if t then
+		if t >= info.nextBlink then
+			info.nextBlink = t + 2.2 + math.random() * 3.5
+			info.blinkUntil = t + 0.13
+		end
+		if info.blinkUntil and t < info.blinkUntil then
+			blink = 0.12
+		end
+	end
 	for _, pt in ipairs(info.parts) do
 		local rel = pt.rel
 		local p = rel.Position
 		local delta = Vector3.new(p.X * (sxz - 1), p.Y * (sy - 1) + lift, p.Z * (sxz - 1))
+		if t and pt.orbit then
+			local o = pt.orbit
+			local angle = if o.tick then o.phase + math.floor(t * o.speed) * (math.pi / 6) else o.phase + t * o.speed
+			local flat = Vector3.new(math.cos(angle) - math.cos(o.phase), 0, math.sin(angle) - math.sin(o.phase)) * o.radius
+			delta += o.tilt:VectorToWorldSpace(flat)
+		end
+		if t and info.glitch and math.random() < 0.08 then
+			delta += Vector3.new(math.random() - 0.5, math.random() - 0.5, math.random() - 0.5) * 0.5
+		end
 		pt.mesh.Offset = rel:VectorToObjectSpace(delta)
-		pt.mesh.Scale = Vector3.new(axisScale(rel.XVector, sy, sxz), axisScale(rel.YVector, sy, sxz), axisScale(rel.ZVector, sy, sxz))
+		local scale = Vector3.new(axisScale(rel.XVector, sy, sxz), axisScale(rel.YVector, sy, sxz), axisScale(rel.ZVector, sy, sxz))
+		if pt.eye and blink < 1 then
+			scale = Vector3.new(scale.X, scale.Y * blink, scale.Z)
+		end
+		pt.mesh.Scale = scale
 	end
 end
 
@@ -133,20 +177,82 @@ local function startFeel()
 					if (root.Position - camPos).Magnitude <= Feel.AnimDistance then
 						local s = math.sin(t * Feel.SquishSpeed + info.phase) * Feel.SquishAmount
 						local lift = Feel.BobHeight * (0.5 + 0.5 * math.sin(t * Feel.BobSpeed + info.phase))
+						local grow = 1
 						-- just grew a size (Level Up milestone): a quick over-inflate wobble
 						local grewAt = model:GetAttribute("GrewAt")
 						local age = if grewAt then serverNow - grewAt else math.huge
 						if age >= 0 and age < 0.9 then
 							local u = age / 0.9
-							local pulse = 0.3 * math.sin(u * math.pi * 2.5) * (1 - u)
-							s += pulse
+							s += 0.3 * math.sin(u * math.pi * 2.5) * (1 - u)
 						end
-						applyFeel(info, 1 + s, 1 - s * 0.5, lift)
+						-- Supernovasaur swells in a burst every few seconds
+						if info.supernova then
+							local u = ((t + info.phase) % SUPERNOVA_EVERY) / SUPERNOVA_TIME
+							if u < 1 then
+								grow = 1 + 0.22 * math.sin(u * math.pi)
+							end
+						end
+						applyFeel(info, (1 + s) * grow, (1 - s * 0.5) * grow, lift, t)
 						info.active = true
 					elseif info.active then
-						applyFeel(info, 1, 1, 0)
+						applyFeel(info, 1, 1, 0, nil)
 						info.active = false
 					end
+				end
+			end
+		end
+	end)
+
+	-- lights and colors, 10 times a second: Supernova flash, Prism rainbow,
+	-- storm flicker, Glitchpup's color splits
+	local glitchColors = {} -- part -> its real color
+	task.spawn(function()
+		while true do
+			task.wait(0.1)
+			local t = os.clock()
+			for _, model in ipairs(CollectionService:GetTagged("Supernova")) do
+				local body = model:FindFirstChild("Body")
+				local glow = body and body:FindFirstChild("Glow")
+				if glow then
+					local info = feelCache[model]
+					local u = ((t + (if info then info.phase else 0)) % SUPERNOVA_EVERY) / SUPERNOVA_TIME
+					glow.Brightness = if u < 1 then 1 + 7 * math.sin(u * math.pi) else 1
+					glow.Range = if u < 1 then 18 else 10
+				end
+			end
+			for _, model in ipairs(CollectionService:GetTagged("Prism")) do
+				local body = model:FindFirstChild("Body")
+				local glow = body and body:FindFirstChild("Glow")
+				if glow then
+					glow.Color = Color3.fromHSV((t * 0.2) % 1, 0.6, 1)
+				end
+			end
+			for _, model in ipairs(CollectionService:GetTagged("StormFlash")) do
+				local body = model:FindFirstChild("Body")
+				local glow = body and body:FindFirstChild("Glow")
+				if glow then
+					local n = math.noise(t * 4, model:GetPivot().Position.X)
+					glow.Enabled = n > -0.1
+					glow.Brightness = if n > 0.35 then 5 else 1.2
+				end
+			end
+			for _, model in ipairs(CollectionService:GetTagged("Glitch")) do
+				for _, p in ipairs(model:GetChildren()) do
+					if p:IsA("BasePart") and p:GetAttribute("Paint") then
+						if glitchColors[p] == nil then
+							glitchColors[p] = p.Color
+						end
+						if math.random() < 0.12 then
+							p.Color = if math.random() < 0.5 then Color3.fromRGB(255, 40, 200) else Color3.fromRGB(40, 255, 240)
+						else
+							p.Color = glitchColors[p]
+						end
+					end
+				end
+			end
+			for p in pairs(glitchColors) do
+				if not p.Parent then
+					glitchColors[p] = nil
 				end
 			end
 		end
