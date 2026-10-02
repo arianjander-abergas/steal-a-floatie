@@ -55,21 +55,22 @@ Rolling.MaxMutationChance = 0.9 -- no single mutation ever goes above 90%
 
 ---------------------------------------------------------------------
 -- Pump tiers (the "dice"). Bought with Air at the Pump Shop, in order,
--- owned forever; one is equipped at a time. look = how PumpModel builds it.
+-- owned forever; one is equipped at a time. look = how PumpModel builds it,
+-- rarity = the tag the Pump Shop shows next to the name.
 ---------------------------------------------------------------------
 Rolling.Pumps = {
-	{ name = "Hand Pump",      luck = 1,      price = 0,             look = "Hand",       color = Color3.fromRGB(230, 60, 60),   desc = "Red plastic hand pump" },
-	{ name = "Foot Pump",      luck = 2,      price = 250,           look = "Foot",       color = Color3.fromRGB(255, 205, 50),  desc = "Yellow bellows you stomp" },
-	{ name = "Bike Pump",      luck = 4,      price = 2500,          look = "Bike",       color = Color3.fromRGB(200, 205, 215), desc = "Tall chrome pump with a gauge" },
-	{ name = "Party Pump",     luck = 8,      price = 25000,         look = "Party",      color = Color3.fromRGB(255, 95, 160),  desc = "Striped, streamers fly out" },
-	{ name = "Double Barrel",  luck = 20,     price = 250000,        look = "Double",     color = Color3.fromRGB(70, 205, 95),   desc = "Two cylinders, twice the puff" },
-	{ name = "Electric Pump",  luck = 50,     price = 2500000,       look = "Electric",   color = Color3.fromRGB(65, 150, 255),  desc = "Buzzing blue motor, sparks" },
-	{ name = "Air Compressor", luck = 150,    price = 25000000,      look = "Compressor", color = Color3.fromRGB(255, 140, 40),  desc = "Industrial tank with a pressure dial" },
-	{ name = "Helium Tank",    luck = 500,    price = 250000000,     look = "Helium",     color = Color3.fromRGB(215, 220, 235), desc = "Silver tank, balloons float up" },
-	{ name = "Cloud Maker",    luck = 2000,   price = 2500000000,    look = "Cloud",      color = Color3.fromRGB(240, 248, 255), desc = "Fluffy machine puffing clouds" },
-	{ name = "Jet Turbine",    luck = 10000,  price = 25000000000,   look = "Jet",        color = Color3.fromRGB(120, 130, 150), desc = "Spinning jet engine" },
-	{ name = "Storm Engine",   luck = 50000,  price = 250000000000,  look = "Storm",      color = Color3.fromRGB(60, 60, 90),    desc = "Thundercloud with lightning coils" },
-	{ name = "Aurora Engine",  luck = 250000, price = 2500000000000, look = "Aurora",     color = Color3.fromRGB(120, 255, 200), desc = "Glowing ribbons of aurora light" },
+	{ name = "Hand Pump",        rarity = "Common",          luck = 1,      price = 0,             look = "Hand",       color = Color3.fromRGB(230, 60, 60),   desc = "Red plastic hand pump" },
+	{ name = "Foot Pump",        rarity = "Common",          luck = 2,      price = 250,           look = "Foot",       color = Color3.fromRGB(255, 205, 50),  desc = "Yellow bellows you stomp" },
+	{ name = "Bike Pump",        rarity = "Uncommon",        luck = 4,      price = 2500,          look = "Bike",       color = Color3.fromRGB(200, 205, 215), desc = "Tall chrome pump with a gauge" },
+	{ name = "Party Pump",       rarity = "Uncommon",       luck = 8,      price = 25000,         look = "Party",      color = Color3.fromRGB(255, 95, 160),  desc = "Striped, streamers fly out" },
+	{ name = "Double Barrel",    rarity = "Rare",        luck = 20,     price = 250000,        look = "Double",     color = Color3.fromRGB(70, 205, 95),   desc = "Two cylinders, twice the puff" },
+	{ name = "Electric Pump",    rarity = "Rare",        luck = 50,     price = 2500000,       look = "Electric",   color = Color3.fromRGB(65, 150, 255),  desc = "Buzzing blue motor, sparks" },
+	{ name = "Air Compressor",   rarity = "Epic",       luck = 150,    price = 25000000,      look = "Compressor", color = Color3.fromRGB(255, 140, 40),  desc = "Industrial tank with a pressure dial" },
+	{ name = "Helium Tank",      rarity = "Epic",          luck = 500,    price = 250000000,     look = "Helium",     color = Color3.fromRGB(215, 220, 235), desc = "Silver tank, balloons float up" },
+	{ name = "Cloud Maker",      rarity = "Legendary",     luck = 2000,   price = 2500000000,    look = "Cloud",      color = Color3.fromRGB(240, 248, 255), desc = "Fluffy machine puffing clouds" },
+	{ name = "Jet Turbine",      rarity = "Legendary",     luck = 10000,  price = 25000000000,   look = "Jet",        color = Color3.fromRGB(120, 130, 150), desc = "Spinning jet engine" },
+	{ name = "Storm Engine",     rarity = "Mythic",       luck = 50000,  price = 250000000000,  look = "Storm",      color = Color3.fromRGB(60, 60, 90),    desc = "Thundercloud with lightning coils" },
+	{ name = "Aurora Engine",    rarity = "Divine",      luck = 250000, price = 2500000000000, look = "Aurora",     color = Color3.fromRGB(120, 255, 200), desc = "Glowing ribbons of aurora light" },
 }
 
 return Rolling

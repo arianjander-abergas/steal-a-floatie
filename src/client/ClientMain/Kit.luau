@@ -1031,6 +1031,9 @@ local function getTemplate(preview)
 	local template = templates[key]
 	if template == nil then
 		local ok, result = pcall(function()
+			if preview._build then
+				return preview._build() -- a custom model (see preview:setModel)
+			end
 			local model = FloatieModel.Build(Config.FloatieById[preview._id], preview._mut, 1)
 			FloatieModel.SetAnchored(model, true)
 			local label = model.PrimaryPart and model.PrimaryPart:FindFirstChild("Label")
@@ -1171,8 +1174,31 @@ function Preview:setFloatie(floatieId, mutId)
 	self._key = key
 	self._id = if def then floatieId else nil
 	self._mut = if def then mut else nil
+	self._build = nil
 	if key then
 		-- show it right away if it is already on screen (else the loop will)
+		local ok, err = pcall(updatePreview, self)
+		if not ok then
+			warnOnce("preview", "preview update failed: " .. tostring(err))
+		end
+	end
+end
+
+-- preview:setModel(key, build) — show any model: build() -> Model is called once per key
+-- (e.g. "pump|3", function() return PumpModel.Build(3) end)
+function Preview:setModel(key, build)
+	if key == self._key then
+		return
+	end
+	if self._clone then
+		self._clone:Destroy()
+		self._clone = nil
+	end
+	self._key = key
+	self._id = nil
+	self._mut = nil
+	self._build = build
+	if key then
 		local ok, err = pcall(updatePreview, self)
 		if not ok then
 			warnOnce("preview", "preview update failed: " .. tostring(err))
