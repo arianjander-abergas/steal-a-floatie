@@ -1,5 +1,5 @@
 --[[
-	Steal a Floatie — Sounds (ModuleScript child of the ClientMain LocalScript)
+	Floatie Farm — Sounds (ModuleScript child of the ClientMain LocalScript)
 	Builds one Sound template per entry in Config.Sounds (edit the ids there)
 	and plays them: flat UI sounds through SoundService, or 3D at a part.
 	Kit buttons play "Click" through Kit.setSoundPlayer(Sounds.play), which

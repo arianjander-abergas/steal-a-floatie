@@ -79,7 +79,7 @@ Rewards.Events = {
 -- Each code is a reward (see the top of this file).
 ---------------------------------------------------------------------
 Rewards.Codes = {
-	RELEASE = { air = 500 },
+	RELEASE = { incomeMinutes = 10, minAir = 1000 },
 	FLOATIE = { floatie = { id = "Kittiloon" }, mutation = "Glitter" },
 	LUCKY = { potions = { Luck = 1 } },
 	-- LIKES1K = { air = 5000 },   -- example: add when the game hits 1,000 likes

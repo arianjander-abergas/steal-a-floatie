@@ -22,7 +22,7 @@ local Config = {}
 -- General
 ---------------------------------------------------------------------
 Config.GameName = "Floatie Farm"
-Config.Version = "0.3.0"                -- bump every update, shown in the HUD
+Config.Version = "1.0.0"                -- bump every update, shown in the HUD
 Config.DataStoreName = "FloatieData_v1" -- NEVER rename after launch (players lose saves)
 Config.SaveVersion = 2                  -- the save format; DataService converts older saves
 

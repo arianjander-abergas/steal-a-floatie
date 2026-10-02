@@ -1,5 +1,5 @@
 --[[
-	Steal a Floatie — HUD (ModuleScript child of the ClientMain LocalScript)
+	Floatie Farm — HUD (ModuleScript child of the ClientMain LocalScript)
 	The always-on screen, drawn on the "FloatieHUD" Kit canvas:
 	  • TopBar      Sell / Home / Plaza buttons (top-center)
 	  • TopStack    empty list the event / carry / tutorial boxes go into

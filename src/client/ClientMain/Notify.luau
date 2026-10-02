@@ -1,5 +1,5 @@
 --[[
-	Steal a Floatie — Notify (ModuleScript child of the ClientMain LocalScript)
+	Floatie Farm — Notify (ModuleScript child of the ClientMain LocalScript)
 	Toasts: the short colored messages above the hotbar ("You stole a
 	Pupfloat!", "Coming soon!", ...). They live on their own "FloatieToasts"
 	screen, so they show above open panels.

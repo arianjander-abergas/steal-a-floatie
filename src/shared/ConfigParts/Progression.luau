@@ -18,7 +18,7 @@ local Progression = {}
 Progression.Levels = {
 	Max = 100,
 	IncomePerLevel = 0.15,
-	CostMult = 30,
+	CostMult = 100,     -- Lv 1->2 pays back in ~11 min before Cash (tuned in Stage 15)
 	CostGrowth = 1.08,
 }
 
@@ -48,7 +48,7 @@ Progression.Grades = {
 }
 Progression.ConfirmGradeReroll = "S" -- ask "are you sure?" before rerolling this grade or better
 -- One Grade Token for Air at the Grading stand; the price climbs with every one bought.
-Progression.GradeTokenAir = { base = 10000, growth = 1.25 }
+Progression.GradeTokenAir = { base = 100000, growth = 1.3 }
 
 ---------------------------------------------------------------------
 -- Traits: new Floaties have none. 1 Trait Gem rerolls it at the Traits
@@ -85,12 +85,12 @@ Progression.Slots = {
 -- robux = price of ONE level (a developer product, see Config.UpgradeProducts).
 ---------------------------------------------------------------------
 Progression.Upgrades = {
-	{ id = "slots",    name = "More Slots",    icon = "🧩", desc = "+1 slot for a Floatie",      per = 1,    max = 20, costBase = 1000, costGrowth = 2.2, robux = 39 },
-	{ id = "luck",     name = "Luck",          icon = "🍀", desc = "+10% luck on every roll",     per = 0.10, max = 50, costBase = 500,  costGrowth = 1.6, robux = 12 },
-	{ id = "cash",     name = "Cash",          icon = "💰", desc = "+10% Air from every Floatie", per = 0.10, max = 50, costBase = 400,  costGrowth = 1.6, robux = 14 },
-	{ id = "time",     name = "Time",          icon = "⏱️", desc = "-4% inflate time",            per = 0.04, max = 15, costBase = 800,  costGrowth = 2.0, robux = 10 },
+	{ id = "slots",    name = "More Slots",    icon = "🧩", desc = "+1 slot for a Floatie",      per = 1,    max = 20, costBase = 2500, costGrowth = 2.5, robux = 39 },
+	{ id = "luck",     name = "Luck",          icon = "🍀", desc = "+10% luck on every roll",     per = 0.10, max = 50, costBase = 2500, costGrowth = 2.0, robux = 12 },
+	{ id = "cash",     name = "Cash",          icon = "💰", desc = "+10% Air from every Floatie", per = 0.10, max = 50, costBase = 2000, costGrowth = 2.0, robux = 14 },
+	{ id = "time",     name = "Time",          icon = "⏱️", desc = "-4% inflate time",            per = 0.04, max = 15, costBase = 5000, costGrowth = 2.5, robux = 10 },
 	{ id = "walk",     name = "Walk Speed",    icon = "👟", desc = "+1 walk speed",               per = 1,    max = 16, costBase = 300,  costGrowth = 1.8, robux = 9 },
-	{ id = "conveyor", name = "Conveyor Luck", icon = "🌈", desc = "+10% mutation chance",        per = 0.10, max = 30, costBase = 1000, costGrowth = 1.7, robux = 12 },
+	{ id = "conveyor", name = "Conveyor Luck", icon = "🌈", desc = "+10% mutation chance",        per = 0.10, max = 30, costBase = 5000, costGrowth = 2.0, robux = 12 },
 }
 
 ---------------------------------------------------------------------
@@ -98,10 +98,10 @@ Progression.Upgrades = {
 -- pumps and upgrades stay. Cost = CostBase x CostGrowth^rebirths.
 ---------------------------------------------------------------------
 Progression.Rebirth = {
-	CostBase = 100000,
-	CostGrowth = 30,
+	CostBase = 250e6,   -- tuned in Stage 15: first rebirth after about an hour
+	CostGrowth = 40,
 	CashBonus = 0.50,   -- +50% Cash per rebirth
-	LuckBonus = 0.25,   -- +25% Luck per rebirth
+	LuckBonus = 0.10,   -- +10% Luck per rebirth
 	SlotsEach = 2,      -- +2 slots per rebirth...
 	SlotsMax = 6,       -- ...up to +6
 	GradeTokens = 5,

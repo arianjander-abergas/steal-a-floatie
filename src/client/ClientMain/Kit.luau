@@ -1,5 +1,5 @@
 --[[
-	Steal a Floatie — Kit (ModuleScript child of the ClientMain LocalScript)
+	Floatie Farm — Kit (ModuleScript child of the ClientMain LocalScript)
 	The UI toolkit every screen and panel is built with:
 	  • screens with one responsive "Canvas": lay out in virtual px, Kit scales it for phones
 	  • chunky white text with a thick dark outline (UIStroke, never the old text stroke)

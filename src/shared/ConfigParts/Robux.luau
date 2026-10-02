@@ -58,9 +58,9 @@ Robux.StarterPack = {
 	id = 0, price = 49, title = "Starter Pack",
 	grant = {
 		floatie = { rarity = "Rare", upgradeChance = 0.30, upgradeTo = "Epic" }, mutation = "random",
-		air = 10000, potions = { Luck = 2 }, gradeTokens = 3,
+		incomeMinutes = 30, minAir = 50000, potions = { Luck = 2 }, gradeTokens = 3,
 	},
-	lines = { "Rare or Epic Floatie (30% Epic) with a mutation", "10,000 Air", "Luck Potion x2", "Grade Token x3" },
+	lines = { "Rare or Epic Floatie (30% Epic) with a mutation", "30 min of income (at least 50K Air)", "Luck Potion x2", "Grade Token x3" },
 	popupAfterRolls = 10,
 }
 

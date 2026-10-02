@@ -83,9 +83,13 @@ function Formulas.sellValue(f)
 	return math.floor(def.income * Config.SellMult * Formulas.gradeMult(f) * Formulas.mutationMult(f))
 end
 
--- Air to go from `level` to `level + 1`
-function Formulas.levelUpCost(def, level)
-	return math.floor(def.income * Levels.CostMult * Levels.CostGrowth ^ (level - 1))
+-- Air to go from `level` to `level + 1`. Priced on this Floatie's own
+-- income (rarity x grade x trait x mutation), so every Level Up pays back
+-- in the same time no matter how fancy the Floatie is.
+function Formulas.levelUpCost(f, level)
+	local def = Config.FloatieById[f.id]
+	local base = def.income * Formulas.gradeMult(f) * Formulas.traitMult(f) * Formulas.mutationMult(f)
+	return math.floor(base * Levels.CostMult * Levels.CostGrowth ^ (level - 1))
 end
 
 -- total Air for `count` more levels (stops at the max level); returns cost, levels
@@ -97,7 +101,7 @@ function Formulas.levelCost(f, count)
 	local level = f.level or 1
 	local total, n = 0, 0
 	while n < count and level + n < Levels.Max do
-		total += Formulas.levelUpCost(def, level + n)
+		total += Formulas.levelUpCost(f, level + n)
 		n += 1
 	end
 	return total, n
@@ -113,7 +117,7 @@ function Formulas.affordableLevels(f, air, limit)
 	local total, n = 0, 0
 	limit = limit or Levels.Max
 	while n < limit and level + n < Levels.Max do
-		local nextCost = Formulas.levelUpCost(def, level + n)
+		local nextCost = Formulas.levelUpCost(f, level + n)
 		if total + nextCost > air then
 			break
 		end

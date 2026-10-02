@@ -18,6 +18,7 @@
 	Player attributes: AutoRoll, Hide, AutoSell, JackpotReady
 ]]
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
@@ -133,6 +134,19 @@ local function rideTimes(base, slot)
 	return math.abs(M.ConveyorStartZ - rel.Z) / BELT_SPEED, math.abs(rel.X) / R.WalkSpeed
 end
 
+-- pump puffs and conveyor rides are only worth sending to players who can
+-- see that base (its owner always gets them); bases are ~200 studs apart
+local VIEW_RANGE = 320
+local function fireNear(remote, owner, base, ...)
+	local pos = base and base.cf.Position
+	for _, p in ipairs(Players:GetPlayers()) do
+		local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+		if p == owner or not pos or not root or (root.Position - pos).Magnitude <= VIEW_RANGE then
+			remote:FireClient(p, ...)
+		end
+	end
+end
+
 ---------------------------------------------------------------------
 -- Roll
 ---------------------------------------------------------------------
@@ -182,14 +196,14 @@ function Rolling.roll(player)
 		id = def.id, mut = mut, dest = dest, soldFor = soldFor, uid = f and f.uid, slot = f and f.slot,
 		inflateTime = inflate, jackpot = jackpot, rollNumber = n, new = isNew,
 	})
-	PumpPuffRE:FireAllClients(prof.base, inflate)
+	fireNear(PumpPuffRE, player, base, prof.base, inflate)
 
 	task.delay(inflate, function()
 		if not player.Parent or not Core.profiles[player] then
 			return
 		end
 		if showRide then
-			ConveyorRideRE:FireAllClients({
+			fireNear(ConveyorRideRE, player, base, {
 				base = prof.base, id = def.id, mut = mut, slot = f and f.slot, dest = dest,
 				soldFor = soldFor, ride = ride, walk = walk,
 			})

@@ -1,5 +1,5 @@
 --[[
-	Steal a Floatie — Effects (ModuleScript child of the ClientMain LocalScript)
+	Floatie Farm — Effects (ModuleScript child of the ClientMain LocalScript)
 	Client-side visuals that never touch gameplay:
 	  • the "Pop" sound where a Floatie pops
 	  • Rainbow Floaties cycling their colors (runs on each client, saves bandwidth)

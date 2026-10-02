@@ -1,5 +1,5 @@
 --[[
-	Steal a Floatie — EventBanner (ModuleScript child of the ClientMain LocalScript)
+	Floatie Farm — EventBanner (ModuleScript child of the ClientMain LocalScript)
 	The purple box under the top bar while a server event runs
 	("✨ GOLDEN HOUR  2:41" + what it does), and the time-of-day change
 	that goes with each event (Thunderstorm = dusk, Secret Skies = night).

@@ -1,39 +1,74 @@
-# Steal a Floatie 🎈
+# Floatie Farm 🎈
+
+Roll the Pump to inflate balloon-animal Floaties, send them down the conveyor
+to your base, and let them earn Air. Spend Air on better Pumps (more luck),
+upgrades and Level Ups; rebirth for permanent boosts; collect the Index;
+trade with friends.
 
 ## Play it in 2 minutes
 1. Install **Roblox Studio** (free) and log in.
-2. Double-click **StealAFloatie.rbxlx** (or open it with File > Open from File in Studio).
-3. Press **Play**. The map, bases, Pump Line and HUD all build themselves when the game starts.
-4. To test stealing, open the **Test** tab, set **Clients** to 2 and click **Start**. That opens two players.
+2. Open **StealAFloatie.rbxlx** (File > Open from File), or the published place.
+3. Press **Play**. The map, bases, Pump Shop and HUD all build themselves when the game starts.
+4. To test trading, open the **Test** tab, set **Clients** to 2 and click **Start**.
 
 ## Test commands (type in chat while testing in Studio)
 | Command | What it does |
 |---|---|
-| `;air 1000000` | gives you Air |
-| `;give Dragonflate Rainbow` | spawns a Floatie (optional 3rd value = stage 1–5) |
-| `;grow` | inflates all your Floaties by 1 stage |
-| `;event GoldenHour` | starts an event (HeliumRain, GoldenHour, WindyDay, Thunderstorm, SecretSkies) |
+| `;air 1000000` | adds Air |
+| `;give Dragonflate Rainbow 50` | spawns a Floatie (mutation and level optional) |
+| `;event GoldenHour` | starts an event (HeliumRain, GoldenHour, Thunderstorm, SecretSkies, LuckyBreeze) |
+| `;rolls 1000` | sets your total rolls (trading unlocks at 1,000) |
+| `;potion Luck 3` | adds potions (Luck, Cash, Mutation) |
+| `;tokens 10` `;gems 10` `;jackpot 2` | Grade Tokens, Trait Gems, Jackpot Rolls |
+| `;level 50` | sets every Floatie you own to that level |
+| `;rebirths 3` | sets your rebirth count |
+| `;pump 6` | owns every Pump up to that tier and equips it |
+| `;buy QuadLuck` | acts as if a pass / product was bought (any GamePasses or DevProducts name, StarterPack, Offer2..Offer5, Upgrade_luck) |
+| `;wipe` | (Studio only) start over as a brand-new player |
 
 ## Before you publish
-- File > **Publish to Roblox**. Then go to Game Settings > Security and turn on **Enable Studio Access to API Services** so you can test saving.
-- Game Settings > Places > set **Max Players = 8** (there are 8 bases).
-- Create the game passes and developer products on create.roblox.com and paste their IDs into `Config` (ReplicatedStorage > Shared > Config).
+- File > **Publish to Roblox**, then Game Settings > Security > **Enable Studio Access to API Services** so saving works in Studio.
+- Game Settings > Places > **Max Players = 8** (there are 8 bases).
+- Create the game passes and developer products on create.roblox.com and paste their IDs into `src/shared/ConfigParts/Robux.luau` (every `id = 0` is a placeholder; until then purchases only work through `;buy`).
 - Put your Roblox UserId in `Config.AdminUserIds`.
 
-## Where things are
-| File | In Studio | Job |
-|---|---|---|
-| `src/shared/Config.luau` | `ReplicatedStorage/Shared/Config` | **Edit this one for updates**: Floaties, prices, stages, events, codes, Robux products |
-| `src/shared/FloatieModel.luau` | `ReplicatedStorage/Shared/FloatieModel` | builds the balloon-animal models from shapes (no 3D modeling) |
-| `src/GameServer.server.luau` | `ServerScriptService/GameServer` | all the gameplay: buying, income, inflating, stealing, darts, lock, rebirth, events, purchases, saving |
-| `src/server/DataService.luau` | `ServerScriptService/Server/DataService` | saving and loading |
-| `src/server/MapBuilder.luau` | `ServerScriptService/Server/MapBuilder` | builds the map and the Dart Blaster |
-| `src/client/ClientMain/` | `StarterPlayer/StarterPlayerScripts/ClientMain` | LocalScript `ClientMain` (`init.client.luau`) plus modules: Kit = UI toolkit, HUD, Shop/Rebirth/Codes panels, and gameplay helpers (toasts, sounds, event banner, carry box, tutorial, prompts, darts, knockback, effects) |
+## Economy (tuned in v1.0.0)
+Numbers live in `src/shared/ConfigParts/Rolling.luau` (Pumps) and `Progression.luau` (levels, upgrades, rebirth).
+They were tuned with a simulation of a free player on Auto Roll who spends sensibly. Expected pace:
 
+| Milestone | Time |
+|---|---|
+| Pump 3 | ~9 min |
+| Pump 4 | ~35 min |
+| First rebirth | ~1 h |
+| Pump 5 | ~2.5 h |
+| First Divine | ~4 h |
+| Pump 6 | ~8 h |
+| First Celestial | ~14 h |
+| Pump 7 | ~32 h |
+| First Cosmic | ~3–4 days |
+
+Rules of thumb when changing them:
+- Pump luck grows slowly (x1 to x200) and prices grow ~40–100x per tier, so each Pump is a real goal.
+- A Level Up costs `Floatie income x 100 x 1.08^(level-1)`, so leveling pays back in about the same time for every Floatie.
+- Rebirth costs at least 250M (x40 each time) and takes ALL your Air; Floaties, Pumps and upgrades stay. Each one gives +50% cash, +10% luck and +2 slots (up to +6).
+- If you change Floatie incomes, re-check these times: the whole curve scales with them.
+
+## Where things are
+| Folder | In Studio | Job |
+|---|---|---|
+| `src/shared/Config.luau` + `ConfigParts/` | `ReplicatedStorage/Shared` | **Edit these for updates**: Floaties, Pumps, prices, upgrades, rewards, codes, Robux products, trading |
+| `src/shared/Formulas.luau` | `ReplicatedStorage/Shared/Formulas` | income, level cost, sell value, upgrade and rebirth prices (used by server and client) |
+| `src/shared/FloatieModel.luau`, `PumpModel.luau` | `ReplicatedStorage/Shared` | build the balloon-animal and Pump models from shapes (no 3D modeling) |
+| `src/GameServer.server.luau` | `ServerScriptService/GameServer` | starts everything |
+| `src/server/` | `ServerScriptService/Server` | Rolling, Floaties, Bases, Economy, Upgrades, Rebirth, Index, Rewards, Potions, Reroll, Shop, Trading, Events, DataService (saving), Sync (client copy of the save), Admin, MapBuilder |
+| `src/client/ClientMain/` | `StarterPlayer/StarterPlayerScripts/ClientMain` | Kit (UI toolkit), HUD and every panel (Backpack, Index, Pump Shop, Upgrades, Rebirth, Rewards, Shop, Trade, ...), roll and conveyor effects, tutorial |
+
+`CarryBox`, `Darts` and `Knockback` in `ClientMain` are left over from Steal a Floatie and are no longer used.
 `Art/` holds the game icon and thumbnail for the Roblox page.
 
 ## Editing with Rojo
 1. In PowerShell: `cd "C:\Users\AIAN\Desktop\Roblox Games"` then `rojo serve`.
-2. In Studio, open `StealAFloatie.rbxlx`, then Plugins > Rojo > Connect.
+2. In Studio, Plugins > Rojo > Connect.
 3. Edit scripts in VS Code (not Studio's script editor). Saves appear in Studio instantly.
 4. When something works, commit and push with GitHub Desktop.
