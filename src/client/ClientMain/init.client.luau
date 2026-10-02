@@ -6,7 +6,7 @@
 
 	Screens (all Kit canvases, see Kit.createScreen):
 	  FloatieHUD     DisplayOrder 1    HUD, roll buttons, the boxes under the top bar
-	  FloatiePanels  DisplayOrder 5    Shop / Rebirth / Codes / ...
+	  FloatiePanels  DisplayOrder 5    Shop / Rebirth / Rewards / ...
 	  FloatieReveal  DisplayOrder 8    the big reveal of a rare pull
 	  FloatieToasts  DisplayOrder 10   toasts (above everything)
 ]]
@@ -21,7 +21,7 @@ local HUD = require(script:WaitForChild("HUD"))
 local RollUI = require(script:WaitForChild("RollUI"))
 local Shop = require(script:WaitForChild("Shop"))
 local Rebirth = require(script:WaitForChild("Rebirth"))
-local Codes = require(script:WaitForChild("Codes"))
+local RewardsPanel = require(script:WaitForChild("RewardsPanel"))
 local Backpack = require(script:WaitForChild("Backpack"))
 local Sell = require(script:WaitForChild("Sell"))
 local FloatieCard = require(script:WaitForChild("FloatieCard"))
@@ -34,6 +34,8 @@ local Tutorial = require(script:WaitForChild("Tutorial"))
 local Prompts = require(script:WaitForChild("Prompts"))
 local Effects = require(script:WaitForChild("Effects"))
 local Conveyor = require(script:WaitForChild("Conveyor"))
+local Boosts = require(script:WaitForChild("Boosts"))
+local Badges = require(script:WaitForChild("Badges"))
 
 -- run a step; a broken module warns once instead of stopping the rest
 local warned = {}
@@ -110,8 +112,8 @@ end)
 safe("Rebirth.mount", function()
 	panels.Rebirth = Rebirth.mount(panelCanvas)
 end)
-safe("Codes.mount", function()
-	panels.Codes = Codes.mount(panelCanvas)
+safe("RewardsPanel.mount", function()
+	panels.Rewards = RewardsPanel.mount(panelCanvas)
 end)
 safe("Backpack.mount", function()
 	panels.Backpack = Backpack.mount(panelCanvas, actions)
@@ -140,6 +142,7 @@ safe("HUD.mount", function()
 	topStack = HUD.mount(hudCanvas, { togglePanel = togglePanel }).topStack
 end)
 safe("Notify.follow", Notify.follow, topStack)
+safe("Boosts.mount", Boosts.mount, hudCanvas)
 safe("RollUI.mount", RollUI.mount, hudCanvas, revealCanvas, { openPanel = openPanel })
 
 ---------------------------------------------------------------------
@@ -176,6 +179,9 @@ local STEPS = {
 	{ "EventBanner.update", EventBanner.update },
 	{ "Rebirth.update", Rebirth.update },
 	{ "HUD.update", HUD.update },
+	{ "Boosts.update", Boosts.update },
+	{ "RewardsPanel.update", RewardsPanel.update },
+	{ "Badges.update", Badges.update },
 }
 task.spawn(function()
 	while true do

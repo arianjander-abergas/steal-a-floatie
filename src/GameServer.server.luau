@@ -26,6 +26,7 @@
 	  Upgrades     the Upgrades window and the Pump Shop
 	  Reroll       the Grading and Traits stands
 	  Index        Index milestones
+	  Potions      drinking potions
 	  Plaza        leaderboards, best Floatie in the server, event sign, Tower door
 	  Admin        ;chat commands for testing
 ]]
@@ -48,12 +49,13 @@ require(ServerFolder:WaitForChild("Floaties"))
 require(ServerFolder:WaitForChild("Rolling"))
 require(ServerFolder:WaitForChild("Grant"))
 local Events = require(ServerFolder:WaitForChild("Events"))
-require(ServerFolder:WaitForChild("Rewards"))
+local Rewards = require(ServerFolder:WaitForChild("Rewards"))
 require(ServerFolder:WaitForChild("Rebirth"))
 local Shop = require(ServerFolder:WaitForChild("Shop"))
 require(ServerFolder:WaitForChild("Upgrades"))
 require(ServerFolder:WaitForChild("Reroll"))
 require(ServerFolder:WaitForChild("Index"))
+require(ServerFolder:WaitForChild("Potions"))
 local Plaza = require(ServerFolder:WaitForChild("Plaza"))
 require(ServerFolder:WaitForChild("Admin"))
 
@@ -67,6 +69,10 @@ Plaza.init(map)
 -- Server Luck Boost (Robux): Lucky Breeze for everyone
 Shop.handle("ServerLuckBoost", function(player)
 	return Events.start("LuckyBreeze", player.DisplayName)
+end)
+-- Skip All (Robux): every playtime reward unlocks now
+Shop.handle("SkipPlaytime", function(player)
+	return Rewards.skipPlaytime(player)
 end)
 
 ---------------------------------------------------------------------
