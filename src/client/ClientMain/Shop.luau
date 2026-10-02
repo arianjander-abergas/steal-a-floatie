@@ -74,7 +74,7 @@ local function shopRow(list, order, name, info, onBuy)
 		Size = UDim2.new(1, -130, 0, 22),
 		Text = info.desc,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		TextColor3 = C.TextDark,
+		TextColor3 = C.TextSoft,
 	}, { outline = 0 })
 
 	local b = Kit.button(row, {

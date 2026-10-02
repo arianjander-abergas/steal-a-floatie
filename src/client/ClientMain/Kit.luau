@@ -570,8 +570,41 @@ function Kit.plate(parent, props, opts)
 end
 
 ---------------------------------------------------------------------
+-- Studs: the LEGO-style dots on panel headers (like the reference games)
+---------------------------------------------------------------------
+
+-- Kit.studs(frame, opts?) -> Frame "Studs" (fills `frame`, clipped)
+-- opts = { stud = 10, gap = 7, transparency = 0.78, zIndex = 2, width = 900, height = 64 }
+function Kit.studs(frame, opts)
+	opts = opts or {}
+	local stud = opts.stud or 10
+	local gap = opts.gap or 7
+	local holder = Kit.make("Frame", {
+		Name = "Studs", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1,
+		ClipsDescendants = true, ZIndex = opts.zIndex or 2, Active = false,
+	}, frame)
+	Kit.make("UIPadding", { PaddingLeft = UDim.new(0, gap / 2), PaddingTop = UDim.new(0, gap / 2) }, holder)
+	Kit.make("UIGridLayout", {
+		CellSize = UDim2.fromOffset(stud, stud), CellPadding = UDim2.fromOffset(gap, gap),
+		SortOrder = Enum.SortOrder.LayoutOrder, FillDirection = Enum.FillDirection.Horizontal,
+	}, holder)
+	local cols = math.ceil((opts.width or 900) / (stud + gap))
+	local rows = math.ceil((opts.height or 64) / (stud + gap))
+	for _ = 1, cols * rows do
+		local s = Kit.make("Frame", {
+			Name = "Stud", BackgroundColor3 = WHITE, BackgroundTransparency = opts.transparency or 0.78,
+			BorderSizePixel = 0, ZIndex = opts.zIndex or 2,
+		}, holder)
+		Kit.round(s, 3)
+	end
+	return holder
+end
+
+---------------------------------------------------------------------
 -- Panels (Shop / Rebirth / Codes / ...). Only one is open at a time:
--- opening one closes the others, like the old toggle().
+-- opening one closes the others, like the old toggle(). A "stack" panel
+-- (opts.stack = true, e.g. the Floatie card or a confirm box) opens ON TOP
+-- of the open panel and only closes other stack panels.
 ---------------------------------------------------------------------
 local Panel = {}
 Panel.__index = Panel
@@ -601,10 +634,11 @@ function Panel:_hideNow()
 	end
 end
 
--- panel:open() — closes every other panel instantly, then pops this one in
+-- panel:open() — closes every other panel instantly (a stack panel only
+-- closes other stack panels), then pops this one in
 function Panel:open()
 	for other in pairs(panels) do
-		if other ~= self and (other._open or other.frame.Visible) then
+		if other ~= self and (other._open or other.frame.Visible) and (not self._stack or other._stack) then
 			other:_hideNow()
 		end
 	end
@@ -659,7 +693,7 @@ end
 
 -- Kit.panel(parent, opts) -> Panel { frame, header, body, closeButton, open, close, toggle, isOpen }
 -- opts = { title, icon?, color = C.Blue, size = Vector2.new(460, 330), name = title .. "Panel",
---          onOpen?, onClose? }
+--          onOpen?, onClose?, stack = false }
 -- Put all content in panel.body (436x262 virtual px at the default size).
 function Kit.panel(parent, opts)
 	if opts == nil and parent ~= nil and typeof(parent) ~= "Instance" then
@@ -675,7 +709,7 @@ function Kit.panel(parent, opts)
 		Name = opts.name or (title .. "Panel"),
 		AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.5, 20),
 		Size = UDim2.fromOffset(size.X, size.Y), BackgroundColor3 = WHITE, BorderSizePixel = 0,
-		Visible = false,
+		Visible = false, ZIndex = if opts.stack then 10 else 1,
 		Active = true, -- clicks on a panel must not reach the world behind it
 	})
 	Kit.round(frame, 18)
@@ -696,13 +730,15 @@ function Kit.panel(parent, opts)
 		Size = UDim2.new(1, 0, 0, FILLER_HEIGHT), BackgroundColor3 = WHITE, BorderSizePixel = 0, ZIndex = 1,
 	}, header)
 	Kit.gradient(filler, top:Lerp(bottom, (HEADER_HEIGHT - FILLER_HEIGHT) / HEADER_HEIGHT), bottom)
+	-- LEGO studs across the bar
+	Kit.studs(header, { width = size.X, height = HEADER_HEIGHT, zIndex = 2 })
 	-- a dark line under the bar, like the button borders
 	Kit.make("Frame", {
 		Name = "Divider", Position = UDim2.fromScale(0, 1), Size = UDim2.new(1, 0, 0, 3),
-		BackgroundColor3 = C.Outline, BorderSizePixel = 0, ZIndex = 2,
+		BackgroundColor3 = C.Outline, BorderSizePixel = 0, ZIndex = 3,
 	}, header)
 	Kit.label(header, {
-		Name = "Title", Position = UDim2.fromOffset(16, 4), Size = UDim2.new(1, -80, 1, -8), ZIndex = 3,
+		Name = "Title", Position = UDim2.fromOffset(16, 4), Size = UDim2.new(1, -80, 1, -8), ZIndex = 4,
 		Text = (if opts.icon then opts.icon .. " " else "") .. title, TextXAlignment = Enum.TextXAlignment.Left,
 	}, { outline = 3, maxTextSize = 32 })
 
@@ -719,6 +755,7 @@ function Kit.panel(parent, opts)
 	local panel = setmetatable({
 		frame = frame, header = header, body = body, closeButton = closeButton,
 		_open = false, _pop = pop, _tween = nil, _onOpen = opts.onOpen, _onClose = opts.onClose,
+		_stack = opts.stack == true,
 	}, Panel)
 	Kit.onClick(closeButton, function()
 		panel:close()
@@ -1182,6 +1219,172 @@ function Kit.viewport(parent, props, opts)
 		startSpinLoop()
 	end
 	return preview
+end
+
+---------------------------------------------------------------------
+-- Scrolling lists and grids
+---------------------------------------------------------------------
+
+-- Kit.scroll(parent, props?, opts?) -> ScrollingFrame
+-- opts = { cell = Vector2 (a grid of cells; omit for a vertical list), gap = 8, pad = 4 }
+function Kit.scroll(parent, props, opts)
+	props = props or {}
+	opts = opts or {}
+	local base = {
+		Name = "List", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, BorderSizePixel = 0,
+		ScrollBarThickness = 6, ScrollBarImageColor3 = C.TextSoft or WHITE, ScrollingDirection = Enum.ScrollingDirection.Y,
+		AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new(), VerticalScrollBarInset = Enum.ScrollBarInset.ScrollBar,
+	}
+	for k, v in pairs(props) do
+		base[k] = v
+	end
+	local list = Kit.make("ScrollingFrame", base, parent)
+	local gap = opts.gap or 8
+	local pad = opts.pad or 4
+	Kit.make("UIPadding", {
+		PaddingTop = UDim.new(0, pad), PaddingBottom = UDim.new(0, pad),
+		PaddingLeft = UDim.new(0, pad), PaddingRight = UDim.new(0, pad),
+	}, list)
+	if opts.cell then
+		Kit.make("UIGridLayout", {
+			CellSize = UDim2.fromOffset(opts.cell.X, opts.cell.Y), CellPadding = UDim2.fromOffset(gap, gap),
+			SortOrder = Enum.SortOrder.LayoutOrder, HorizontalAlignment = Enum.HorizontalAlignment.Left,
+		}, list)
+	else
+		Kit.make("UIListLayout", { Padding = UDim.new(0, gap), SortOrder = Enum.SortOrder.LayoutOrder }, list)
+	end
+	return list
+end
+
+---------------------------------------------------------------------
+-- Tabs: a row (or column) of buttons where one is selected
+---------------------------------------------------------------------
+local Tabs = {}
+Tabs.__index = Tabs
+
+function Tabs:select(name, silent)
+	if not self.buttons[name] then
+		return
+	end
+	self.selected = name
+	for itemName, button in pairs(self.buttons) do
+		local item = self.items[itemName]
+		Kit.setButtonColor(button, if itemName == name then (item.color or C.Blue) else C.RowAlt)
+	end
+	if not silent and self.onSelect then
+		self.onSelect(name)
+	end
+end
+
+-- Kit.tabs(parent, props, opts) -> Tabs { frame, buttons, selected, select(name) }
+-- opts = { items = { { name = "Units", text = "Units", color = C.Blue }, ... },
+--          vertical = false, button = Vector2.new(110, 34), gap = 6, maxTextSize = 20, onSelect = fn(name) }
+function Kit.tabs(parent, props, opts)
+	opts = opts or {}
+	local frame = Kit.make("Frame", { Name = "Tabs", BackgroundTransparency = 1 }, nil)
+	for k, v in pairs(props or {}) do
+		frame[k] = v
+	end
+	Kit.make("UIListLayout", {
+		FillDirection = if opts.vertical then Enum.FillDirection.Vertical else Enum.FillDirection.Horizontal,
+		Padding = UDim.new(0, opts.gap or 6), SortOrder = Enum.SortOrder.LayoutOrder,
+	}, frame)
+	local tabs = setmetatable({ frame = frame, buttons = {}, items = {}, selected = nil, onSelect = opts.onSelect }, Tabs)
+	local size = opts.button or Vector2.new(110, 34)
+	for i, item in ipairs(opts.items or {}) do
+		local button = Kit.button(frame, {
+			Name = item.name, Size = UDim2.fromOffset(item.width or size.X, size.Y), LayoutOrder = i,
+		}, { text = item.text or item.name, color = C.RowAlt, maxTextSize = opts.maxTextSize or 20, radius = 10 })
+		tabs.buttons[item.name] = button
+		tabs.items[item.name] = item
+		Kit.onClick(button, function()
+			tabs:select(item.name)
+		end)
+	end
+	frame.Parent = parent
+	return tabs
+end
+
+---------------------------------------------------------------------
+-- Progress bar
+---------------------------------------------------------------------
+
+-- Kit.progress(parent, props, opts) -> { frame, fill, label, set(self, fraction, text?) }
+-- opts = { color = C.Green, radius = 10, maxTextSize = 18 }
+function Kit.progress(parent, props, opts)
+	opts = opts or {}
+	local frame = Kit.plate(parent, props, { color = C.RowBorder or C.HudBg, transparency = 0.1, radius = opts.radius or 10, border = 2 })
+	local fill = Kit.make("Frame", {
+		Name = "Fill", Size = UDim2.fromScale(0, 1), BackgroundColor3 = WHITE, BorderSizePixel = 0,
+	}, frame)
+	Kit.round(fill, opts.radius or 10)
+	Kit.gradient(fill, Kit.shade(opts.color or C.Green, 0.3), Kit.shade(opts.color or C.Green, -0.2))
+	local label = Kit.label(frame, {
+		Name = "Label", Size = UDim2.new(1, -8, 1, -4), Position = UDim2.fromOffset(4, 2), ZIndex = 3,
+	}, { maxTextSize = opts.maxTextSize or 18 })
+	local bar = { frame = frame, fill = fill, label = label }
+	function bar:set(fraction, text)
+		self.fill.Size = UDim2.fromScale(math.clamp(fraction or 0, 0, 1), 1)
+		self.fill.Visible = (fraction or 0) > 0.001
+		if text then
+			self.label.Text = text
+		end
+	end
+	return bar
+end
+
+---------------------------------------------------------------------
+-- Confirm box: "Are you sure?" with Yes / No (a stack panel, reused)
+---------------------------------------------------------------------
+local dialogCanvas = nil
+local dialog = nil
+
+-- init calls this with the panel canvas so Kit.confirm has somewhere to draw
+function Kit.setDialogCanvas(canvas)
+	dialogCanvas = canvas
+end
+
+-- Kit.confirm({ title, text, yes = "Yes", no = "Cancel", color = C.Orange }, fn(ok))
+function Kit.confirm(opts, fn)
+	if not dialogCanvas then
+		fn(true) -- nowhere to ask: assume yes
+		return
+	end
+	if not dialog then
+		local panel = Kit.panel(dialogCanvas, { name = "ConfirmPanel", title = "Are you sure?", icon = "❓", color = C.Orange, size = Vector2.new(400, 220), stack = true })
+		local text = Kit.label(panel.body, {
+			Name = "Text", Size = UDim2.new(1, 0, 1, -64), TextWrapped = true,
+		}, { maxTextSize = 22 })
+		local yes = Kit.button(panel.body, {
+			Name = "Yes", AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(0.5, -6, 1, -4), Size = UDim2.fromOffset(150, 50),
+		}, { text = "Yes", color = C.Green })
+		local no = Kit.button(panel.body, {
+			Name = "No", AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0.5, 6, 1, -4), Size = UDim2.fromOffset(150, 50),
+		}, { text = "Cancel", color = C.Red })
+		dialog = { panel = panel, text = text, yes = yes, no = no, fn = nil }
+		Kit.onClick(yes, function()
+			local cb = dialog.fn
+			dialog.fn = nil
+			panel:close()
+			if cb then
+				cb(true)
+			end
+		end)
+		Kit.onClick(no, function()
+			local cb = dialog.fn
+			dialog.fn = nil
+			panel:close()
+			if cb then
+				cb(false)
+			end
+		end)
+	end
+	dialog.fn = fn
+	dialog.panel.header.Title.Text = "❓ " .. (opts.title or "Are you sure?")
+	dialog.text.Text = opts.text or ""
+	Kit.setButtonText(dialog.yes, opts.yes or "Yes")
+	Kit.setButtonText(dialog.no, opts.no or "Cancel")
+	dialog.panel:open()
 end
 
 return Kit

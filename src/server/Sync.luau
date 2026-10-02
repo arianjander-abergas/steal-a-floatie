@@ -114,4 +114,11 @@ Players.PlayerRemoving:Connect(function(player)
 	pending[player] = nil
 end)
 
+-- the client asks for a full copy when its State module starts
+Core.remote("RequestSync").OnServerEvent:Connect(function(player)
+	if Core.throttle(player, "requestSync", 2) then
+		Sync.full(player)
+	end
+end)
+
 return Sync

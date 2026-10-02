@@ -20,6 +20,7 @@
 	the Floatie card when you click / press E on your own Floatie.
 ]]
 
+local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -154,6 +155,20 @@ function Bases.place(player, f)
 	model:SetAttribute("OwnerUserId", player.UserId)
 	model:SetAttribute("Uid", f.uid)
 	model:SetAttribute("Slot", f.slot)
+	-- E next to your own Floatie opens its card (the client only shows this to the owner)
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "ManagePrompt"
+	prompt.ActionText = "Manage"
+	prompt.ObjectText = def.name
+	prompt.KeyboardKeyCode = Enum.KeyCode.E
+	prompt.HoldDuration = 0
+	prompt.MaxActivationDistance = 9
+	prompt.RequiresLineOfSight = false
+	prompt.Enabled = false
+	prompt:SetAttribute("Uid", f.uid)
+	prompt.Parent = model:FindFirstChild("Body") or model.PrimaryPart
+	CollectionService:AddTag(prompt, "OwnerPrompt")
+	CollectionService:AddTag(prompt, "FloatiePrompt")
 	model.Parent = base.floatieFolder
 	base.models[f.uid] = model
 	Bases.label(player, f, model)

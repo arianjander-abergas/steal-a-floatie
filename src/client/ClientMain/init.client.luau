@@ -16,11 +16,15 @@ local StarterGui = game:GetService("StarterGui")
 local Kit = require(script:WaitForChild("Kit"))
 local Sounds = require(script:WaitForChild("Sounds"))
 local Notify = require(script:WaitForChild("Notify"))
+local State = require(script:WaitForChild("State"))
 local HUD = require(script:WaitForChild("HUD"))
 local RollUI = require(script:WaitForChild("RollUI"))
 local Shop = require(script:WaitForChild("Shop"))
 local Rebirth = require(script:WaitForChild("Rebirth"))
 local Codes = require(script:WaitForChild("Codes"))
+local Backpack = require(script:WaitForChild("Backpack"))
+local Sell = require(script:WaitForChild("Sell"))
+local FloatieCard = require(script:WaitForChild("FloatieCard"))
 local EventBanner = require(script:WaitForChild("EventBanner"))
 local Tutorial = require(script:WaitForChild("Tutorial"))
 local Prompts = require(script:WaitForChild("Prompts"))
@@ -57,19 +61,13 @@ local _, revealCanvas = Kit.createScreen("FloatieReveal", 8)
 local _, toastCanvas = Kit.createScreen("FloatieToasts", 10)
 
 ---------------------------------------------------------------------
--- 3. toasts, panels, HUD
+-- 3. toasts, your save's copy, panels, HUD
 ---------------------------------------------------------------------
 safe("Notify.mount", Notify.mount, toastCanvas)
+safe("State.start", State.start)
+Kit.setDialogCanvas(panelCanvas)
+
 local panels = {}
-safe("Shop.mount", function()
-	panels.Shop = Shop.mount(panelCanvas)
-end)
-safe("Rebirth.mount", function()
-	panels.Rebirth = Rebirth.mount(panelCanvas)
-end)
-safe("Codes.mount", function()
-	panels.Codes = Codes.mount(panelCanvas)
-end)
 
 -- the HUD opens panels by name through this (it never requires a panel module)
 local function togglePanel(name)
@@ -91,6 +89,29 @@ local function openPanel(name)
 	end
 end
 
+local function openCard(uid)
+	FloatieCard.open(uid)
+end
+
+local actions = { togglePanel = togglePanel, openPanel = openPanel, openCard = openCard }
+
+safe("Shop.mount", function()
+	panels.Shop = Shop.mount(panelCanvas)
+end)
+safe("Rebirth.mount", function()
+	panels.Rebirth = Rebirth.mount(panelCanvas)
+end)
+safe("Codes.mount", function()
+	panels.Codes = Codes.mount(panelCanvas)
+end)
+safe("Backpack.mount", function()
+	panels.Backpack = Backpack.mount(panelCanvas, actions)
+end)
+safe("Sell.mount", function()
+	panels.Sell = Sell.mount(panelCanvas)
+end)
+safe("FloatieCard.mount", FloatieCard.mount, panelCanvas, actions)
+
 local topStack = hudCanvas -- fallback if the HUD fails to mount
 safe("HUD.mount", function()
 	topStack = HUD.mount(hudCanvas, { togglePanel = togglePanel }).topStack
@@ -108,6 +129,9 @@ safe("Conveyor.start", Conveyor.start)
 -- what the tutorial arrow can point at
 local function findTarget(name)
 	local area = RollUI.area()
+	if name == "RollArea" then
+		return area
+	end
 	if area and area:FindFirstChild(name) then
 		return area[name]
 	end
@@ -117,7 +141,7 @@ end
 ---------------------------------------------------------------------
 -- 5. these wait for workspace.Map.Bases, so they go last
 ---------------------------------------------------------------------
-safe("Prompts.start", Prompts.start, { openPanel = openPanel })
+safe("Prompts.start", Prompts.start, actions)
 safe("Tutorial.mount", Tutorial.mount, hudCanvas, findTarget)
 
 ---------------------------------------------------------------------

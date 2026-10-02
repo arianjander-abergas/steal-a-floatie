@@ -24,13 +24,15 @@ UI.Feel = {
 UI.UI = {
 	-- Text
 	Text          = Color3.fromRGB(255, 255, 255), -- chunky white text
-	TextDark      = Color3.fromRGB(55, 48, 85),    -- small text on light panels (no outline)
-	Outline       = Color3.fromRGB(28, 22, 45),    -- text outlines, button + panel borders
-	-- Surfaces
-	PanelTop      = Color3.fromRGB(250, 248, 255), -- panel body gradient (top)
-	PanelBottom   = Color3.fromRGB(205, 214, 245), -- panel body gradient (bottom)
-	Row           = Color3.fromRGB(255, 255, 255), -- list rows inside panels
-	RowAlt        = Color3.fromRGB(236, 240, 252), -- every other row / empty slots
+	TextDark      = Color3.fromRGB(55, 48, 85),    -- small text on light boxes (no outline)
+	TextSoft      = Color3.fromRGB(190, 198, 225), -- small text on dark panels
+	Outline       = Color3.fromRGB(20, 16, 32),    -- text outlines, button + panel borders
+	-- Surfaces (panels are dark with a bright studded header, like the reference games)
+	PanelTop      = Color3.fromRGB(44, 44, 54),    -- panel body gradient (top)
+	PanelBottom   = Color3.fromRGB(24, 24, 31),    -- panel body gradient (bottom)
+	Row           = Color3.fromRGB(56, 56, 70),    -- list rows / tiles inside panels
+	RowAlt        = Color3.fromRGB(40, 40, 52),    -- empty slots, inactive tabs
+	RowBorder     = Color3.fromRGB(14, 12, 22),
 	Input         = Color3.fromRGB(255, 255, 255), -- text boxes
 	HudBg         = Color3.fromRGB(30, 28, 48),    -- dark HUD plates (drawn ~15% transparent)
 	-- Button / header colors

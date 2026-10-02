@@ -312,14 +312,20 @@ function HUD.mount(canvas, actions)
 		FillDirectionMaxCells = 2, SortOrder = Enum.SortOrder.LayoutOrder,
 	}, tilesFrame)
 
-	-- Stage 1 tiles (final grid orders: Inventory 10, Index 20, Rewards 30,
-	-- Upgrades 40, Items 50, Rebirth 60, Codes 70)
-	HUD.addTile({ name = "Rebirth", icon = "🌟", color = C.Orange, order = 60, onClick = function()
-		togglePanel("Rebirth")
-	end })
-	HUD.addTile({ name = "Codes", icon = "🎁", color = C.Blue, order = 70, onClick = function()
-		togglePanel("Codes")
-	end })
+	-- the six tiles (3 rows of 2). Codes live in the Rewards window.
+	local TILES = {
+		{ name = "Backpack", icon = "🎒", color = C.Blue,   order = 10 },
+		{ name = "Index",    icon = "📖", color = C.Teal,   order = 20 },
+		{ name = "Rewards",  icon = "🎁", color = C.Pink,   order = 30 },
+		{ name = "Upgrades", icon = "⬆️", color = C.Green,  order = 40 },
+		{ name = "Trade",    icon = "🤝", color = C.Purple, order = 50 },
+		{ name = "Rebirth",  icon = "🌟", color = C.Orange, order = 60 },
+	}
+	for _, t in ipairs(TILES) do
+		HUD.addTile({ name = t.name, icon = t.icon, color = t.color, order = t.order, onClick = function()
+			togglePanel(t.name)
+		end })
+	end
 
 	-----------------------------------------------------------------
 	-- AirPanel: cash icon + big rolling Air number + income line

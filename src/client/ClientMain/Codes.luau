@@ -42,7 +42,7 @@ function Codes.mount(canvas)
 		Position = UDim2.fromOffset(18, 0),
 		Size = UDim2.new(1, -36, 0, 26),
 		Text = "Follow us for new codes!",
-		TextColor3 = C.TextDark,
+		TextColor3 = C.TextSoft,
 	}, { outline = 0 })
 
 	-- white text box with a dark border

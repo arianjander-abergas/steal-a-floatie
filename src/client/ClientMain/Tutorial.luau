@@ -27,9 +27,9 @@ local C = Config.UI
 local Tutorial = {}
 
 local STEPS = {
-	{ text = "PRESS ROLL TO PUMP YOUR FIRST FLOATIE!", target = "Roll", timeout = nil,
+	{ text = "PRESS ROLL TO PUMP YOUR FIRST FLOATIE!", target = "RollArea", timeout = nil,
 		done = function() return (player:GetAttribute("TotalRolls") or 0) >= 1 end },
-	{ text = "IT RIDES YOUR CONVEYOR TO A SLOT! ROLL 4 MORE", target = "Roll", timeout = 90,
+	{ text = "IT RIDES YOUR CONVEYOR TO A SLOT! ROLL 4 MORE", target = "RollArea", timeout = 90,
 		done = function() return (player:GetAttribute("TotalRolls") or 0) >= 5 end },
 	{ text = "TURN ON AUTO TO KEEP ROLLING BY ITSELF", target = "Auto", timeout = 60,
 		done = function() return player:GetAttribute("AutoRoll") == true end },
