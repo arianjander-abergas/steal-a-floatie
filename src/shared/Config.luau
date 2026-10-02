@@ -7,6 +7,7 @@
 	  • add a new event          -> Config.Events
 	  • add a promo code         -> Config.Codes
 	  • hook up Robux products   -> Config.GamePasses / Config.DevProducts
+	  • recolor the HUD + panels -> Config.UI
 	After editing, bump Config.Version so players see the update number.
 ]]
 
@@ -16,7 +17,7 @@ local Config = {}
 -- General
 ---------------------------------------------------------------------
 Config.GameName = "Steal a Floatie"
-Config.Version = "0.1.2"           -- bump every update, shown in the HUD
+Config.Version = "0.2.0"           -- bump every update, shown in the HUD
 Config.DataStoreName = "FloatieData_v1" -- NEVER rename after launch (players lose saves)
 
 -- Your Roblox UserId goes here so you can use admin chat commands in live servers
@@ -51,6 +52,9 @@ Config.PopReward = 20               -- popping someone else's stolen Floatie pay
 Config.PumpInterval = 3.5           -- a new Floatie appears on the Pump Line every X sec
 Config.PumpTravelTime = 34          -- seconds to ride the whole line
 
+Config.HomeCooldown = 3             -- seconds between Home teleports (server rate limit; the HUD uses it too).
+                                    -- The server lets requests through 0.5 s early so network lag never eats a click.
+
 ---------------------------------------------------------------------
 -- Game feel (client-side visuals only — safe to tweak any time)
 ---------------------------------------------------------------------
@@ -60,6 +64,53 @@ Config.Feel = {
 	SquishAmount = 0.06,  -- 0.06 = stretches 6% taller / squats 3% wider
 	SquishSpeed = 3.2,
 	AnimDistance = 140,   -- only animate Floaties this close to the camera (performance)
+}
+
+---------------------------------------------------------------------
+-- UI colors (client HUD + panels). Kit builds light-to-dark button
+-- gradients from these automatically.
+---------------------------------------------------------------------
+Config.UI = {
+	-- Text
+	Text          = Color3.fromRGB(255, 255, 255), -- chunky white text
+	TextDark      = Color3.fromRGB(55, 48, 85),    -- small text on light panels (no outline)
+	Outline       = Color3.fromRGB(28, 22, 45),    -- text outlines, button + panel borders
+	-- Surfaces
+	PanelTop      = Color3.fromRGB(250, 248, 255), -- panel body gradient (top)
+	PanelBottom   = Color3.fromRGB(205, 214, 245), -- panel body gradient (bottom)
+	Row           = Color3.fromRGB(255, 255, 255), -- list rows inside panels
+	Input         = Color3.fromRGB(255, 255, 255), -- text boxes
+	HudBg         = Color3.fromRGB(30, 28, 48),    -- dark HUD plates (drawn ~15% transparent)
+	-- Button / header colors
+	Green         = Color3.fromRGB(70, 205, 95),
+	Blue          = Color3.fromRGB(65, 150, 255),
+	Orange        = Color3.fromRGB(255, 160, 40),
+	Yellow        = Color3.fromRGB(255, 205, 50),
+	Pink          = Color3.fromRGB(255, 95, 160),
+	Purple        = Color3.fromRGB(150, 85, 245),
+	Red           = Color3.fromRGB(235, 55, 65),   -- the big X and badges
+	Grey          = Color3.fromRGB(135, 135, 155), -- disabled / owned
+	-- HUD values
+	Income        = Color3.fromRGB(120, 255, 140), -- "+12 Air/s"
+	Luck          = Color3.fromRGB(110, 235, 110),
+	Cash          = Color3.fromRGB(255, 210, 60),
+	Gold          = Color3.fromRGB(255, 210, 90),  -- shop section headers
+	Good          = Color3.fromRGB(120, 255, 140), -- code redeemed
+	Bad           = Color3.fromRGB(255, 120, 120), -- code error
+	-- Boxes under the top bar (same colors as v0.1.2)
+	EventBanner   = Color3.fromRGB(120, 60, 210),
+	EventDesc     = Color3.fromRGB(230, 220, 255),
+	CarryBox      = Color3.fromRGB(200, 60, 60),
+	TutorialBox   = Color3.fromRGB(255, 225, 90),
+	TutorialArrow = Color3.fromRGB(255, 230, 60),
+	-- Toasts by kind (same colors as v0.1.2)
+	Toast = {
+		info    = Color3.fromRGB(45, 45, 70),
+		success = Color3.fromRGB(40, 150, 90),
+		error   = Color3.fromRGB(190, 60, 70),
+		alert   = Color3.fromRGB(230, 70, 40),
+		event   = Color3.fromRGB(140, 70, 220),
+	},
 }
 
 ---------------------------------------------------------------------

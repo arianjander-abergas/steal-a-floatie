@@ -1,0 +1,137 @@
+--[[
+	Steal a Floatie — Notify (ModuleScript child of the ClientMain LocalScript)
+	Toasts: the short colored messages above the hotbar ("You stole a
+	Pupfloat!", "Coming soon!", ...). They live on their own "FloatieToasts"
+	screen, so they show above open panels.
+
+	The server sends them through Remotes.Notify (text, kind); client code
+	calls Notify.toast directly. kind picks the color (Config.UI.Toast) and
+	the sound: info (default), success, error, alert, event.
+
+	API:
+	  Notify.mount(canvas)        -- builds the "Toasts" holder, listens to Remotes.Notify
+	  Notify.toast(text, kind?)   -- works before mount too (queued, up to 5)
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Kit = require(script.Parent.Kit)
+local Sounds = require(script.Parent.Sounds)
+
+local NotifyRE = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Notify")
+
+local C = Config.UI
+
+local MAX_SHOWN = 4        -- toasts on screen at once; a 5th pushes the oldest out
+local MAX_QUEUED = 5       -- toasts kept from before mount
+local TOAST_HEIGHT = 26    -- every toast row (long text shrinks to fit instead of growing the row)
+local GAP = 4              -- space between toasts (the UIListLayout padding)
+local HOLDER_HEIGHT = MAX_SHOWN * TOAST_HEIGHT + (MAX_SHOWN - 1) * GAP -- 116: the "Toasts" box fits exactly 4
+local TOAST_SOUNDS = { success = "Buy", error = "Error", alert = "Alert", event = "Event" }
+
+local Notify = {}
+
+local holder = nil  -- the "Toasts" frame (nil until mount)
+local live = {}     -- toast frames on screen, oldest first
+local queued = {}   -- { { text, kind } } waiting for mount
+local toastOrder = 0
+
+---------------------------------------------------------------------
+-- Showing a toast
+---------------------------------------------------------------------
+local function forget(frame)
+	local i = table.find(live, frame)
+	if i then
+		table.remove(live, i)
+	end
+end
+
+-- fade the plate, its text and every outline/border out, then remove it
+local function fadeOut(frame, textLabel)
+	Kit.tween(frame, 0.4, { BackgroundTransparency = 1 })
+	Kit.tween(textLabel, 0.4, { TextTransparency = 1 })
+	for _, d in ipairs(frame:GetDescendants()) do
+		if d:IsA("UIStroke") then
+			Kit.tween(d, 0.4, { Transparency = 1 })
+		end
+	end
+	task.wait(0.45)
+	forget(frame)
+	frame:Destroy()
+end
+
+local function show(text, kind)
+	toastOrder += 1
+	if TOAST_SOUNDS[kind] then
+		Sounds.play(TOAST_SOUNDS[kind])
+	end
+
+	-- make room: with 4 on screen the oldest goes first (all rows are the
+	-- same height, so 4 always fit the holder)
+	while #live >= MAX_SHOWN do
+		table.remove(live, 1):Destroy()
+	end
+
+	local frame = Kit.plate(holder, {
+		Name = "Toast", Size = UDim2.new(1, 0, 0, TOAST_HEIGHT), LayoutOrder = toastOrder, BackgroundTransparency = 0.1,
+	}, { color = C.Toast[kind] or C.Toast.info, radius = 10, border = 2 })
+	local textLabel = Kit.label(frame, {
+		Position = UDim2.fromOffset(8, 2), Size = UDim2.new(1, -16, 1, -4), Text = text,
+		TextWrapped = true, -- a long server message may wrap onto two lines if that keeps its text bigger
+	}, { maxTextSize = 20 })
+	table.insert(live, frame)
+
+	task.delay(if kind == "alert" then 6 else 4, function()
+		if frame.Parent then -- not already pushed out by newer toasts
+			fadeOut(frame, textLabel)
+		end
+	end)
+end
+
+-- Notify.toast(text, kind?) — kind = "info" | "success" | "error" | "alert" | "event"
+function Notify.toast(text, kind)
+	text = tostring(text or "")
+	if not holder then
+		-- too early (the screen isn't built yet): keep the newest few for mount
+		table.insert(queued, { text, kind })
+		if #queued > MAX_QUEUED then
+			table.remove(queued, 1)
+		end
+		return
+	end
+	show(text, kind)
+end
+
+---------------------------------------------------------------------
+-- Mount
+---------------------------------------------------------------------
+
+-- Notify.mount(canvas) — canvas = the FloatieToasts Kit canvas.
+-- Bottom-center, 340x116 virtual px: room for 4 toasts of 26 px, and the
+-- bottom offset keeps them above the Backpack hotbar (see the layout table
+-- in the Stage 1 contract, section 5.3).
+function Notify.mount(canvas)
+	if holder then
+		return
+	end
+	holder = Kit.make("Frame", {
+		Name = "Toasts", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -84),
+		Size = UDim2.fromOffset(340, HOLDER_HEIGHT), BackgroundTransparency = 1,
+	}, canvas)
+	Kit.make("UIListLayout", {
+		VerticalAlignment = Enum.VerticalAlignment.Bottom, HorizontalAlignment = Enum.HorizontalAlignment.Center,
+		Padding = UDim.new(0, GAP), SortOrder = Enum.SortOrder.LayoutOrder,
+	}, holder)
+
+	NotifyRE.OnClientEvent:Connect(Notify.toast)
+
+	-- show anything that arrived before the screen existed
+	local pending = queued
+	queued = {}
+	for _, item in ipairs(pending) do
+		show(item[1], item[2])
+	end
+end
+
+return Notify

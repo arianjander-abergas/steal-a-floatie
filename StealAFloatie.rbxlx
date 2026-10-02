@@ -243,9 +243,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 		<Item class="Camera" referent="RBX2F8387C669144EA39E7DEB930E044D50">
 			<Properties>
 				<CoordinateFrame name="CFrame">
-					<X>0</X>
-					<Y>20</Y>
-					<Z>20</Z>
+					<X>10.1435165</X>
+					<Y>12.3786602</Y>
+					<Z>11.9984846</Z>
 					<R00>1</R00>
 					<R01>0</R01>
 					<R02>-0</R02>
@@ -261,9 +261,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 				<float name="FieldOfView">70</float>
 				<token name="FieldOfViewMode">0</token>
 				<CoordinateFrame name="Focus">
-					<X>0</X>
-					<Y>0</Y>
-					<Z>-5</Z>
+					<X>10.1435165</X>
+					<Y>-7.6213398</Y>
+					<Z>-13.0015154</Z>
 					<R00>1</R00>
 					<R01>0</R01>
 					<R02>0</R02>
@@ -410,7 +410,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 			<bool name="BanningEnabled">true</bool>
 			<bool name="CharacterAutoLoads">true</bool>
 			<int name="MaxPlayersInternal">12</int>
-			<int name="PreferredPlayersInternal">0</int>
+			<int name="PreferredPlayersInternal">1</int>
 			<float name="RespawnTime">5</float>
 			<bool name="UseStrafingAnimations">false</bool>
 			<BinaryString name="AttributesSerialize"></BinaryString>
@@ -815,294 +815,353 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 				<Properties>
 					<ProtectedString name="Source"><![CDATA[--[[
 	Steal a Floatie — ClientMain (LocalScript in StarterPlayer.StarterPlayerScripts)
-	Builds the HUD, shows notifications, fires the Dart Blaster, hides prompts
-	that aren't meant for you, and plays client-side effects.
+	Boots the client: builds the three screens, mounts the HUD, panels and
+	toasts, starts darts/knockback/effects, and runs the slow UI loop.
+	Each feature lives in its own ModuleScript child of this script.
+
+	Screens (all Kit canvases, see Kit.createScreen):
+	  FloatieHUD     DisplayOrder 1    HUD + the boxes under the top bar
+	  FloatiePanels  DisplayOrder 5    Shop / Rebirth / Codes
+	  FloatieToasts  DisplayOrder 10   toasts (above open panels)
+]]
+
+local Kit = require(script:WaitForChild("Kit"))
+local Sounds = require(script:WaitForChild("Sounds"))
+local Notify = require(script:WaitForChild("Notify"))
+local HUD = require(script:WaitForChild("HUD"))
+local Shop = require(script:WaitForChild("Shop"))
+local Rebirth = require(script:WaitForChild("Rebirth"))
+local Codes = require(script:WaitForChild("Codes"))
+local EventBanner = require(script:WaitForChild("EventBanner"))
+local CarryBox = require(script:WaitForChild("CarryBox"))
+local Tutorial = require(script:WaitForChild("Tutorial"))
+local Prompts = require(script:WaitForChild("Prompts"))
+local Darts = require(script:WaitForChild("Darts"))
+local Knockback = require(script:WaitForChild("Knockback"))
+local Effects = require(script:WaitForChild("Effects"))
+
+-- run a step; a broken module warns once instead of stopping the rest
+local warned = {}
+local function safe(name, fn, ...)
+	local ok, err = pcall(fn, ...)
+	if not ok and not warned[name] then
+		warned[name] = true
+		warn(("[ClientMain] %s failed: %s"):format(name, tostring(err)))
+	end
+end
+
+---------------------------------------------------------------------
+-- 1. sounds first so every Kit button can click
+---------------------------------------------------------------------
+safe("Sounds.init", Sounds.init)
+Kit.setSoundPlayer(Sounds.play)
+
+---------------------------------------------------------------------
+-- 2. screens
+---------------------------------------------------------------------
+local _, hudCanvas = Kit.createScreen("FloatieHUD", 1)
+local _, panelCanvas = Kit.createScreen("FloatiePanels", 5)
+local _, toastCanvas = Kit.createScreen("FloatieToasts", 10)
+
+---------------------------------------------------------------------
+-- 3. toasts, panels, HUD
+---------------------------------------------------------------------
+safe("Notify.mount", Notify.mount, toastCanvas)
+local panels = {}
+safe("Shop.mount", function()
+	panels.Shop = Shop.mount(panelCanvas)
+end)
+safe("Rebirth.mount", function()
+	panels.Rebirth = Rebirth.mount(panelCanvas)
+end)
+safe("Codes.mount", function()
+	panels.Codes = Codes.mount(panelCanvas)
+end)
+
+-- the HUD opens panels by name through this (it never requires a panel module)
+local function togglePanel(name)
+	local panel = panels[name]
+	if panel then
+		panel:toggle()
+	else
+		Notify.toast("Coming soon!", "info")
+	end
+end
+
+local topStack = hudCanvas -- fallback if the HUD fails to mount
+safe("HUD.mount", function()
+	topStack = HUD.mount(hudCanvas, { togglePanel = togglePanel }).topStack
+end)
+
+---------------------------------------------------------------------
+-- 4. boxes under the top bar, gameplay helpers
+---------------------------------------------------------------------
+safe("EventBanner.mount", EventBanner.mount, topStack)
+safe("CarryBox.mount", CarryBox.mount, topStack)
+safe("Darts.start", Darts.start)
+safe("Knockback.start", Knockback.start)
+safe("Effects.start", Effects.start)
+
+---------------------------------------------------------------------
+-- 5. these wait for workspace.Map.Bases, so they go last
+---------------------------------------------------------------------
+safe("Prompts.start", Prompts.start)
+safe("Tutorial.mount", Tutorial.mount, topStack)
+
+---------------------------------------------------------------------
+-- 6. slow UI loop (same order as v0.1.2, every 0.2 s)
+---------------------------------------------------------------------
+local STEPS = {
+	{ "Tutorial.update", Tutorial.update },
+	{ "Prompts.update", Prompts.update },
+	{ "EventBanner.update", EventBanner.update },
+	{ "CarryBox.update", CarryBox.update },
+	{ "Rebirth.update", Rebirth.update },
+	{ "HUD.update", HUD.update },
+}
+task.spawn(function()
+	while true do
+		for _, step in ipairs(STEPS) do
+			safe(step[1], step[2])
+		end
+		task.wait(0.2)
+	end
+end)
+]]></ProtectedString>
+					<bool name="Disabled">false</bool>
+					<Content name="LinkedSource"><null></null></Content>
+					<token name="RunContext">0</token>
+					<string name="ScriptGuid">{79468E3B-E3D0-4203-935B-2F7B5D542182}</string>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+					<string name="Name">ClientMain</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+					<UniqueId name="UniqueId">118bb205a2b353690aca71c2000003e3</UniqueId>
+				</Properties>
+				<Item class="ModuleScript" referent="RBXBC17C40D040E4937A213B94B16780B63">
+					<Properties>
+						<Content name="LinkedSource"><null></null></Content>
+						<ProtectedString name="Source"><![CDATA[--[[
+	Steal a Floatie — CarryBox (ModuleScript child of the ClientMain LocalScript)
+	The red box under the top bar while YOU carry a stolen Floatie:
+	"🎈 Pupfloat — RUN HOME!" plus the time left and darts taken.
+
+	API:
+	  CarryBox.mount(topStack)   -- adds the "CarryBox" box (LayoutOrder 2) to the HUD's TopStack
+	  CarryBox.update()          -- init calls this every 0.2 s
 ]]
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
-local CollectionService = game:GetService("CollectionService")
-local MarketplaceService = game:GetService("MarketplaceService")
-local Lighting = game:GetService("Lighting")
+
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Kit = require(script.Parent.Kit)
 
 local player = Players.LocalPlayer
-local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
-local Remotes = ReplicatedStorage:WaitForChild("Remotes")
-local NotifyRE = Remotes:WaitForChild("Notify")
-local FireDartRE = Remotes:WaitForChild("FireDart")
-local KnockbackRE = Remotes:WaitForChild("Knockback")
-local RebirthRE = Remotes:WaitForChild("Rebirth")
-local RedeemRF = Remotes:WaitForChild("RedeemCode")
+local C = Config.UI
 
----------------------------------------------------------------------
--- UI helpers
----------------------------------------------------------------------
-local FONT = Enum.Font.FredokaOne
-local PINK = Color3.fromRGB(255, 95, 160)
-local DARK = Color3.fromRGB(30, 28, 48)
-local WHITE = Color3.new(1, 1, 1)
+local CarryBox = {}
 
-local function make(className, props, parent)
-	local inst = Instance.new(className)
-	for k, v in pairs(props) do
-		inst[k] = v
-	end
-	inst.Parent = parent
-	return inst
-end
+local box, titleLabel, infoLabel = nil, nil, nil
 
-local function round(inst, radius)
-	make("UICorner", { CornerRadius = UDim.new(0, radius or 12) }, inst)
-	return inst
-end
-
-local function stroke(inst, color, thickness)
-	make("UIStroke", { Color = color or WHITE, Thickness = thickness or 2, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, inst)
-	return inst
-end
-
-local function label(parent, props)
-	local base = {
-		BackgroundTransparency = 1, Font = FONT, TextScaled = true, TextColor3 = WHITE,
-		TextStrokeTransparency = 0.4, Text = "",
-	}
-	for k, v in pairs(props) do
-		base[k] = v
-	end
-	return make("TextLabel", base, parent)
-end
-
-local function button(parent, props)
-	local base = {
-		BackgroundColor3 = PINK, Font = FONT, TextScaled = true, TextColor3 = WHITE,
-		AutoButtonColor = true, Text = "",
-	}
-	for k, v in pairs(props) do
-		base[k] = v
-	end
-	local b = make("TextButton", base, parent)
-	round(b, 10)
-	make("UITextSizeConstraint", { MaxTextSize = 28 }, b)
-	return b
-end
-
-local gui = make("ScreenGui", { Name = "FloatieHUD", ResetOnSpawn = false, ZIndexBehavior = Enum.ZIndexBehavior.Sibling }, player:WaitForChild("PlayerGui"))
-
----------------------------------------------------------------------
--- Sounds (edit the ids in Config.Sounds)
----------------------------------------------------------------------
-local SoundService = game:GetService("SoundService")
-local soundTemplates = {}
-for name, info in pairs(Config.Sounds) do
-	if info.id ~= "" then
-		soundTemplates[name] = make("Sound", {
-			Name = name, SoundId = info.id, Volume = info.volume or 0.5,
-			PlaybackSpeed = info.pitch or 1, Looped = name == "Music",
-		}, SoundService)
-	end
-end
-local function playSound(name, atPart)
-	local s = soundTemplates[name]
-	if not s then
+-- CarryBox.mount(topStack) — same layout as the EventBanner, in red
+function CarryBox.mount(topStack)
+	if box then
 		return
 	end
-	if atPart then
-		local copy = s:Clone()
-		copy.RollOffMaxDistance = 150
-		copy.Parent = atPart
-		copy:Play()
-		copy.Ended:Connect(function()
-			copy:Destroy()
-		end)
-	else
-		SoundService:PlayLocalSound(s)
-	end
-end
-if soundTemplates.Music then
-	soundTemplates.Music:Play()
-end
--- pops happen on the server as a Part named "PopEffect": play the sound where it happens
-workspace.ChildAdded:Connect(function(child)
-	if child.Name == "PopEffect" and child:IsA("BasePart") then
-		playSound("Pop", child)
-	end
-end)
-
----------------------------------------------------------------------
--- Air display (top-left)
----------------------------------------------------------------------
-local airFrame = round(make("Frame", {
-	Position = UDim2.fromOffset(12, 12), Size = UDim2.fromOffset(250, 70),
-	BackgroundColor3 = DARK, BackgroundTransparency = 0.15,
-}, gui), 14)
-stroke(airFrame, PINK, 3)
-local airLabel = label(airFrame, { Position = UDim2.fromOffset(12, 4), Size = UDim2.new(1, -24, 0, 38), TextXAlignment = Enum.TextXAlignment.Left, Text = "🎈 0 Air" })
-local incomeLabel = label(airFrame, { Position = UDim2.fromOffset(12, 42), Size = UDim2.new(1, -24, 0, 22), TextXAlignment = Enum.TextXAlignment.Left, TextColor3 = Color3.fromRGB(120, 255, 140), Text = "+0 Air/s" })
-
-local function refreshAir()
-	airLabel.Text = "🎈 " .. Config.Format(player:GetAttribute("Air") or 0) .. " Air"
-	incomeLabel.Text = "+" .. Config.Format(player:GetAttribute("IncomePerSec") or 0) .. " Air/s"
-end
-player:GetAttributeChangedSignal("Air"):Connect(refreshAir)
-player:GetAttributeChangedSignal("IncomePerSec"):Connect(refreshAir)
-refreshAir()
-
-label(gui, {
-	AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -8, 1, -6), Size = UDim2.fromOffset(160, 16),
-	TextXAlignment = Enum.TextXAlignment.Right, TextTransparency = 0.4, Text = Config.GameName .. " v" .. Config.Version,
-})
-
----------------------------------------------------------------------
--- Notifications (bottom-center toasts)
----------------------------------------------------------------------
-local toastHolder = make("Frame", {
-	AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -110),
-	Size = UDim2.fromOffset(520, 260), BackgroundTransparency = 1,
-}, gui)
-make("UIListLayout", { VerticalAlignment = Enum.VerticalAlignment.Bottom, HorizontalAlignment = Enum.HorizontalAlignment.Center, Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }, toastHolder)
-make("UISizeConstraint", { MaxSize = Vector2.new(520, 260) }, toastHolder)
-
-local TOAST_COLORS = {
-	info = Color3.fromRGB(45, 45, 70),
-	success = Color3.fromRGB(40, 150, 90),
-	error = Color3.fromRGB(190, 60, 70),
-	alert = Color3.fromRGB(230, 70, 40),
-	event = Color3.fromRGB(140, 70, 220),
-}
-local toastOrder = 0
-local TOAST_SOUNDS = { success = "Buy", error = "Error", alert = "Alert", event = "Event" }
-local function toast(text, kind)
-	toastOrder += 1
-	if TOAST_SOUNDS[kind] then
-		playSound(TOAST_SOUNDS[kind])
-	end
-	local f = round(make("Frame", {
-		Size = UDim2.new(1, 0, 0, 40), BackgroundColor3 = TOAST_COLORS[kind] or TOAST_COLORS.info,
-		BackgroundTransparency = 0.1, LayoutOrder = toastOrder,
-	}, toastHolder), 10)
-	local t = label(f, { Position = UDim2.fromOffset(10, 4), Size = UDim2.new(1, -20, 1, -8), Text = text })
-	make("UITextSizeConstraint", { MaxTextSize = 22 }, t)
-	if #toastHolder:GetChildren() > 7 then
-		for _, child in ipairs(toastHolder:GetChildren()) do
-			if child:IsA("Frame") then
-				child:Destroy()
-				break
-			end
-		end
-	end
-	task.delay(if kind == "alert" then 6 else 4, function()
-		if f.Parent then
-			TweenService:Create(f, TweenInfo.new(0.4), { BackgroundTransparency = 1 }):Play()
-			TweenService:Create(t, TweenInfo.new(0.4), { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
-			task.wait(0.45)
-			f:Destroy()
-		end
-	end)
-end
-NotifyRE.OnClientEvent:Connect(toast)
-
----------------------------------------------------------------------
--- Event banner (top-center)
----------------------------------------------------------------------
-local banner = round(make("Frame", {
-	AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 10), Size = UDim2.fromOffset(440, 60),
-	BackgroundColor3 = Color3.fromRGB(120, 60, 210), BackgroundTransparency = 0.1, Visible = false,
-}, gui), 14)
-stroke(banner, WHITE, 2)
-local bannerTitle = label(banner, { Position = UDim2.fromOffset(10, 3), Size = UDim2.new(1, -20, 0, 30) })
-local bannerDesc = label(banner, { Position = UDim2.fromOffset(10, 34), Size = UDim2.new(1, -20, 0, 20), TextColor3 = Color3.fromRGB(230, 220, 255) })
-
-local EVENT_CLOCK = { Thunderstorm = 18.6, SecretSkies = 0 }
-local currentEvent = ""
-local function updateEvent()
-	local name = ReplicatedStorage:GetAttribute("Event") or ""
-	local endsAt = ReplicatedStorage:GetAttribute("EventEndsAt") or 0
-	local left = endsAt - workspace:GetServerTimeNow()
-	local ev = Config.Events[name]
-	if ev and left > 0 then
-		banner.Visible = true
-		bannerTitle.Text = ev.title .. "  " .. Config.FormatTime(left)
-		bannerDesc.Text = ev.desc
-	else
-		banner.Visible = false
-		name = ""
-	end
-	if name ~= currentEvent then
-		currentEvent = name
-		TweenService:Create(Lighting, TweenInfo.new(3), { ClockTime = EVENT_CLOCK[name] or 14 }):Play()
-	end
+	box = Kit.plate(topStack, {
+		Name = "CarryBox", LayoutOrder = 2, Size = UDim2.new(1, 0, 0, 38), Visible = false,
+	}, { gradient = true, color = C.CarryBox, radius = 12 })
+	titleLabel = Kit.label(box, {
+		Name = "Title", Position = UDim2.fromOffset(10, 2), Size = UDim2.new(1, -20, 0, 22),
+	}, { maxTextSize = 22 })
+	-- white like v0.1.2 (the event's lilac would look muddy on red)
+	infoLabel = Kit.label(box, {
+		Name = "Desc", Position = UDim2.fromOffset(10, 23), Size = UDim2.new(1, -20, 0, 13),
+	}, { outline = 1 })
 end
 
----------------------------------------------------------------------
--- Carry indicator (when YOU are carrying a stolen Floatie)
----------------------------------------------------------------------
-local carryFrame = round(make("Frame", {
-	AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 78), Size = UDim2.fromOffset(400, 58),
-	BackgroundColor3 = Color3.fromRGB(200, 60, 60), BackgroundTransparency = 0.1, Visible = false,
-}, gui), 12)
-local carryTitle = label(carryFrame, { Position = UDim2.fromOffset(10, 3), Size = UDim2.new(1, -20, 0, 30) })
-local carryInfo = label(carryFrame, { Position = UDim2.fromOffset(10, 33), Size = UDim2.new(1, -20, 0, 20) })
-
-local function updateCarry()
+-- CarryBox.update() — the server sets CarryEndsAt while you carry one
+function CarryBox.update()
+	if not box then
+		return
+	end
 	local endsAt = player:GetAttribute("CarryEndsAt")
 	if not endsAt then
-		carryFrame.Visible = false
+		box.Visible = false
 		return
 	end
-	carryFrame.Visible = true
-	carryTitle.Text = "🎈 " .. (player:GetAttribute("CarryName") or "Floatie") .. " — RUN HOME!"
+	box.Visible = true
+	titleLabel.Text = "🎈 " .. (player:GetAttribute("CarryName") or "Floatie") .. " — RUN HOME!"
 	local hits = player:GetAttribute("CarryHits") or 0
 	local popHits = player:GetAttribute("CarryPopHits") or 1
-	carryInfo.Text = "⏱ " .. math.max(0, math.ceil(endsAt - workspace:GetServerTimeNow())) .. "s   💥 " .. hits .. "/" .. popHits .. " darts"
+	infoLabel.Text = "⏱ " .. math.max(0, math.ceil(endsAt - workspace:GetServerTimeNow())) .. "s   💥 " .. hits .. "/" .. popHits .. " darts"
 end
 
----------------------------------------------------------------------
--- Panels (Shop / Rebirth / Codes)
----------------------------------------------------------------------
-local panels = {}
-local function makePanel(title)
-	local p = round(make("Frame", {
-		AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(0.9, 0.85),
-		BackgroundColor3 = DARK, Visible = false,
-	}, gui), 16)
-	stroke(p, PINK, 3)
-	make("UISizeConstraint", { MaxSize = Vector2.new(440, 380) }, p)
-	make("UIAspectRatioConstraint", { AspectRatio = 440 / 380 }, p)
-	label(p, { Position = UDim2.fromOffset(16, 8), Size = UDim2.new(1, -70, 0, 40), Text = title, TextXAlignment = Enum.TextXAlignment.Left })
-	local close = button(p, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 10), Size = UDim2.fromOffset(36, 36), Text = "X", BackgroundColor3 = Color3.fromRGB(200, 60, 70) })
-	close.Activated:Connect(function()
-		p.Visible = false
-	end)
-	table.insert(panels, p)
-	return p
-end
-local function toggle(p)
-	local show = not p.Visible
-	for _, other in ipairs(panels) do
-		other.Visible = false
+return CarryBox
+]]></ProtectedString>
+						<string name="ScriptGuid">{2F5E729A-7ADC-4090-84DC-D02505CABEBB}</string>
+						<BinaryString name="AttributesSerialize"></BinaryString>
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+						<string name="Name">CarryBox</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+						<UniqueId name="UniqueId">25fc82e6d8cb96740acb48d80000093e</UniqueId>
+					</Properties>
+				</Item>
+				<Item class="ModuleScript" referent="RBXB9C2BA4B7BA0407A85AB5B908516411A">
+					<Properties>
+						<Content name="LinkedSource"><null></null></Content>
+						<ProtectedString name="Source"><![CDATA[--[[
+	Steal a Floatie — Knockback (ModuleScript child of the ClientMain LocalScript)
+	The server sends a velocity through Remotes.Knockback (darts, pops, wind,
+	locked bases); your character owns its own physics, so the client
+	applies the shove.
+
+	API:
+	  Knockback.start()
+]]
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local KnockbackRE = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Knockback")
+
+local player = Players.LocalPlayer
+
+local Knockback = {}
+
+local started = false
+
+-- Knockback.start()
+function Knockback.start()
+	if started then
+		return
 	end
-	p.Visible = show
+	started = true
+	KnockbackRE.OnClientEvent:Connect(function(velocity)
+		local char = player.Character
+		local hrp = char and char:FindFirstChild("HumanoidRootPart")
+		local hum = char and char:FindFirstChildOfClass("Humanoid")
+		if not hrp or not hum or typeof(velocity) ~= "Vector3" then
+			return
+		end
+		-- jump first so the ground doesn't eat the push
+		hum:ChangeState(Enum.HumanoidStateType.Jumping)
+		hrp.AssemblyLinearVelocity = velocity
+	end)
 end
 
--- Shop
-local shop = makePanel("🛒 Shop")
-local list = make("ScrollingFrame", {
-	Position = UDim2.fromOffset(12, 56), Size = UDim2.new(1, -24, 1, -68), BackgroundTransparency = 1,
-	ScrollBarThickness = 6, AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new(),
-}, shop)
-make("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }, list)
+return Knockback
+]]></ProtectedString>
+						<string name="ScriptGuid">{F4C66A82-430D-4A81-9B5A-6BCC8E909D83}</string>
+						<BinaryString name="AttributesSerialize"></BinaryString>
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+						<string name="Name">Knockback</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+						<UniqueId name="UniqueId">25fc82e6d8cb96740acb48d800000941</UniqueId>
+					</Properties>
+				</Item>
+				<Item class="ModuleScript" referent="RBX6F217C483FB04F578874042CC631ECCE">
+					<Properties>
+						<Content name="LinkedSource"><null></null></Content>
+						<ProtectedString name="Source"><![CDATA[--[[
+	Steal a Floatie — Shop (ModuleScript child of the ClientMain LocalScript)
+	The Shop panel: one scrolling list with the Game Passes (forever) and the
+	Boosts (developer products) from Config. Content and purchase calls are the
+	same as v0.1.2; only the look is new (Kit panel, white rows, chunky green
+	"R$" buttons).
 
-local passButtons = {}
-local function shopRow(order, info, onBuy)
-	local row = round(make("Frame", { Size = UDim2.new(1, -8, 0, 62), BackgroundColor3 = Color3.fromRGB(50, 46, 78), LayoutOrder = order }, list), 10)
-	label(row, { Position = UDim2.fromOffset(10, 4), Size = UDim2.new(1, -130, 0, 28), Text = info.title, TextXAlignment = Enum.TextXAlignment.Left })
-	label(row, { Position = UDim2.fromOffset(10, 32), Size = UDim2.new(1, -130, 0, 22), Text = info.desc, TextXAlignment = Enum.TextXAlignment.Left, TextColor3 = Color3.fromRGB(200, 200, 230), TextStrokeTransparency = 1 })
-	local b = button(row, { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.5, 0), Size = UDim2.fromOffset(104, 42), Text = "R$ " .. info.price, BackgroundColor3 = Color3.fromRGB(40, 170, 90) })
-	b.Activated:Connect(function()
+	To sell something: paste its id into Config.GamePasses / Config.DevProducts.
+	While an id is 0 the button just says "Coming soon!".
+
+	API:
+	  Shop.mount(canvas) -> Panel   -- builds the panel on the "FloatiePanels" Kit canvas
+]]
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local MarketplaceService = game:GetService("MarketplaceService")
+
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Kit = require(script.Parent.Kit)
+local Notify = require(script.Parent.Notify)
+
+local player = Players.LocalPlayer
+local C = Config.UI
+
+local Shop = {}
+
+local panel = nil -- the Kit Panel, once mounted
+
+---------------------------------------------------------------------
+-- Helpers
+---------------------------------------------------------------------
+-- names of a Config table, sorted so the list order never changes
+local function sortedNames(tbl)
+	local names = {}
+	for name in pairs(tbl) do
+		table.insert(names, name)
+	end
+	table.sort(names)
+	return names
+end
+
+-- gold section title ("Game Passes (forever)" / "Boosts")
+local function sectionHeader(list, text, order)
+	return Kit.label(list, {
+		Name = "Header" .. order,
+		Size = UDim2.new(1, -10, 0, 26),
+		Text = text,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextColor3 = C.Gold,
+		LayoutOrder = order,
+	})
+end
+
+-- one white row: title + description on the left, buy button on the right.
+-- onBuy(id) runs only when the item has a real id (not 0).
+local function shopRow(list, order, name, info, onBuy)
+	local row = Kit.plate(list, {
+		Name = name,
+		Size = UDim2.new(1, -10, 0, 62),
+		LayoutOrder = order,
+	}, { color = C.Row, transparency = 0, radius = 10, border = 2 })
+
+	Kit.label(row, {
+		Name = "Title",
+		Position = UDim2.fromOffset(10, 4),
+		Size = UDim2.new(1, -130, 0, 28),
+		Text = info.title,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	})
+	Kit.label(row, {
+		Name = "Desc",
+		Position = UDim2.fromOffset(10, 32),
+		Size = UDim2.new(1, -130, 0, 22),
+		Text = info.desc,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextColor3 = C.TextDark,
+	}, { outline = 0 })
+
+	local b = Kit.button(row, {
+		Name = "Buy",
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -8, 0.5, 0),
+		Size = UDim2.fromOffset(104, 42),
+	}, { text = "R$ " .. info.price, color = C.Green })
+
+	Kit.onClick(b, function()
 		if info.id == 0 then
-			toast("Coming soon! (Developer: paste the ID into Config)", "info")
+			Notify.toast("Coming soon! (Developer: paste the ID into Config)", "info")
 			return
 		end
 		onBuy(info.id)
@@ -1110,243 +1169,120 @@ local function shopRow(order, info, onBuy)
 	return b
 end
 
-label(list, { Size = UDim2.new(1, -8, 0, 26), Text = "Game Passes (forever)", LayoutOrder = 0, TextXAlignment = Enum.TextXAlignment.Left, TextColor3 = Color3.fromRGB(255, 210, 90) })
-local order = 1
-local passNames = {}
-for name in pairs(Config.GamePasses) do
-	table.insert(passNames, name)
-end
-table.sort(passNames)
-for _, name in ipairs(passNames) do
-	passButtons[name] = shopRow(order, Config.GamePasses[name], function(id)
-		MarketplaceService:PromptGamePassPurchase(player, id)
-	end)
-	order += 1
-end
-label(list, { Size = UDim2.new(1, -8, 0, 26), Text = "Boosts", LayoutOrder = 100, TextXAlignment = Enum.TextXAlignment.Left, TextColor3 = Color3.fromRGB(255, 210, 90) })
-order = 101
-local productNames = {}
-for name in pairs(Config.DevProducts) do
-	table.insert(productNames, name)
-end
-table.sort(productNames)
-for _, name in ipairs(productNames) do
-	shopRow(order, Config.DevProducts[name], function(id)
-		MarketplaceService:PromptProductPurchase(player, id)
-	end)
-	order += 1
-end
-
-local function refreshPasses()
-	for name, b in pairs(passButtons) do
-		if player:GetAttribute("Pass_" .. name) then
-			b.Text = "Owned ✓"
-			b.BackgroundColor3 = Color3.fromRGB(90, 90, 110)
-			b.Active = false
-			b.AutoButtonColor = false
-		end
-	end
-end
-for name in pairs(Config.GamePasses) do
-	player:GetAttributeChangedSignal("Pass_" .. name):Connect(refreshPasses)
-end
-refreshPasses()
-
--- Rebirth
-local rebirth = makePanel("🌟 Rebirth")
-local rebirthInfo = label(rebirth, { Position = UDim2.fromOffset(20, 64), Size = UDim2.new(1, -40, 0, 170), TextWrapped = true, TextYAlignment = Enum.TextYAlignment.Top })
-make("UITextSizeConstraint", { MaxTextSize = 24 }, rebirthInfo)
-local rebirthButton = button(rebirth, { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -20), Size = UDim2.fromOffset(240, 60), Text = "REBIRTH" })
-rebirthButton.Activated:Connect(function()
-	RebirthRE:FireServer()
-	rebirth.Visible = false
-end)
-local function refreshRebirth()
-	local n = player:GetAttribute("Rebirths") or 0
-	local cost = Config.RebirthCost(n)
-	rebirthInfo.Text = ("Rebirths: %d\nCost: %s Air\n\nReward: +%d%% Air forever, +%d pedestals\n\nResets your Air and Floaties — you KEEP your best Floatie.")
-		:format(n, Config.Format(cost), math.floor(Config.RebirthIncomeBonus * 100), Config.PedestalsPerRebirth)
-	local canAfford = (player:GetAttribute("Air") or 0) >= cost
-	rebirthButton.BackgroundColor3 = if canAfford then Color3.fromRGB(255, 170, 40) else Color3.fromRGB(90, 90, 110)
-end
-
--- Codes
-local codes = makePanel("🎁 Codes")
-local codeBox = round(make("TextBox", {
-	Position = UDim2.fromOffset(30, 90), Size = UDim2.new(1, -60, 0, 56), BackgroundColor3 = WHITE,
-	Font = FONT, TextScaled = true, TextColor3 = DARK, PlaceholderText = "Enter code", Text = "", ClearTextOnFocus = false,
-}, codes), 10)
-local codeResult = label(codes, { Position = UDim2.fromOffset(30, 160), Size = UDim2.new(1, -60, 0, 34) })
-local redeem = button(codes, { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -30), Size = UDim2.fromOffset(220, 58), Text = "REDEEM" })
-local redeeming = false
-redeem.Activated:Connect(function()
-	if redeeming then
-		return
-	end
-	redeeming = true
-	local ok, success, msg = pcall(function()
-		return RedeemRF:InvokeServer(codeBox.Text)
-	end)
-	if ok then
-		codeResult.Text = msg or ""
-		codeResult.TextColor3 = if success then Color3.fromRGB(120, 255, 140) else Color3.fromRGB(255, 120, 120)
-	end
-	redeeming = false
-end)
-label(codes, { Position = UDim2.fromOffset(30, 56), Size = UDim2.new(1, -60, 0, 26), Text = "Follow us for new codes!", TextColor3 = Color3.fromRGB(200, 200, 230) })
-
--- Side buttons
-local side = make("Frame", { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 12, 0.5, 0), Size = UDim2.fromOffset(84, 270), BackgroundTransparency = 1 }, gui)
-make("UIListLayout", { Padding = UDim.new(0, 10), SortOrder = Enum.SortOrder.LayoutOrder }, side)
-local function sideButton(text, color, order2, panel)
-	local b = button(side, { Size = UDim2.fromOffset(84, 80), Text = text, BackgroundColor3 = color, LayoutOrder = order2 })
-	stroke(b, WHITE, 2)
-	b.Activated:Connect(function()
-		toggle(panel)
-		if panel == rebirth then
-			refreshRebirth()
-		end
-	end)
-end
-sideButton("🛒\nShop", Color3.fromRGB(40, 170, 90), 1, shop)
-sideButton("🌟\nRebirth", Color3.fromRGB(255, 170, 40), 2, rebirth)
-sideButton("🎁\nCodes", Color3.fromRGB(80, 140, 255), 3, codes)
-
 ---------------------------------------------------------------------
--- Prompt visibility: you only see Steal on others' bases, Sell/Lock on yours
+-- Mount
 ---------------------------------------------------------------------
-local basesFolder = workspace:WaitForChild("Map"):WaitForChild("Bases")
-local function updatePrompts()
-	local t = workspace:GetServerTimeNow()
-	local carrying = player:GetAttribute("CarryEndsAt") ~= nil
-	for _, ped in ipairs(CollectionService:GetTagged("Pedestal")) do
-		local baseFolder = basesFolder:FindFirstChild("Base" .. tostring(ped:GetAttribute("BaseIndex")))
-		local steal = ped:FindFirstChild("StealPrompt")
-		local sell = ped:FindFirstChild("SellPrompt")
-		if baseFolder and steal and sell then
-			local owner = baseFolder:GetAttribute("OwnerUserId") or 0
-			local has = ped:GetAttribute("HasFloatie") == true and ped:GetAttribute("Unlocked") == true
-			local mine = owner == player.UserId
-			local locked = (baseFolder:GetAttribute("LockedUntil") or 0) > t
-			steal.Enabled = has and not mine and owner ~= 0 and not locked and not carrying
-			sell.Enabled = has and mine
-		end
+function Shop.mount(canvas)
+	if panel then
+		return panel -- already built
 	end
-	for _, btn in ipairs(CollectionService:GetTagged("LockButton")) do
-		local baseFolder = basesFolder:FindFirstChild("Base" .. tostring(btn:GetAttribute("BaseIndex")))
-		local pr = btn:FindFirstChild("LockPrompt")
-		if baseFolder and pr then
-			pr.Enabled = baseFolder:GetAttribute("OwnerUserId") == player.UserId
-		end
-	end
-end
 
----------------------------------------------------------------------
--- Dart Blaster
----------------------------------------------------------------------
-local mouse = player:GetMouse()
-local hooked = {}
-local nextShot = 0
-local function hookTool(tool)
-	if not tool:IsA("Tool") or tool.Name ~= "Dart Blaster" or hooked[tool] then
-		return
-	end
-	hooked[tool] = true
-	tool.Equipped:Connect(function()
-		mouse.Icon = "rbxasset://textures/GunCursor.png"
-	end)
-	tool.Unequipped:Connect(function()
-		mouse.Icon = ""
-	end)
-	tool.Activated:Connect(function()
-		local clock = os.clock()
-		if clock < nextShot then
-			return
-		end
-		nextShot = clock + Config.DartCooldown
-		playSound("Dart")
-		FireDartRE:FireServer(mouse.Hit.Position)
-	end)
-end
-local function watchContainer(container)
-	for _, child in ipairs(container:GetChildren()) do
-		hookTool(child)
-	end
-	container.ChildAdded:Connect(hookTool)
-end
-player.CharacterAdded:Connect(function(character)
-	watchContainer(character)
-	watchContainer(player:WaitForChild("Backpack"))
-end)
-if player.Character then
-	watchContainer(player.Character)
-end
-watchContainer(player:WaitForChild("Backpack"))
+	panel = Kit.panel(canvas, {
+		name = "ShopPanel",
+		title = "Shop",
+		icon = "🛒",
+		color = C.Green,
+	})
 
----------------------------------------------------------------------
--- Knockback (darts, pops, wind, locked bases)
----------------------------------------------------------------------
-KnockbackRE.OnClientEvent:Connect(function(velocity)
-	local char = player.Character
-	local hrp = char and char:FindFirstChild("HumanoidRootPart")
-	local hum = char and char:FindFirstChildOfClass("Humanoid")
-	if not hrp or not hum or typeof(velocity) ~= "Vector3" then
-		return
-	end
-	hum:ChangeState(Enum.HumanoidStateType.Jumping)
-	hrp.AssemblyLinearVelocity = velocity
-end)
+	-- scrolling list that fills the whole panel body
+	local list = Kit.make("ScrollingFrame", {
+		Name = "List",
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 6,
+		ScrollBarImageColor3 = C.Outline,
+		ScrollingDirection = Enum.ScrollingDirection.Y,
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		CanvasSize = UDim2.new(),
+	}, panel.body)
+	Kit.make("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }, list)
+	Kit.make("UIPadding", {
+		PaddingTop = UDim.new(0, 4),
+		PaddingBottom = UDim.new(0, 4),
+		PaddingLeft = UDim.new(0, 3),
+	}, list)
 
----------------------------------------------------------------------
--- Rainbow Floaties (color cycling runs on each client, saves bandwidth)
----------------------------------------------------------------------
-local rainbowAccum = 0
-RunService.RenderStepped:Connect(function(dt)
-	rainbowAccum += dt
-	if rainbowAccum < 0.1 then
-		return
+	-----------------------------------------------------------------
+	-- Game Passes (LayoutOrder 0 header, rows 1, 2, ...)
+	-----------------------------------------------------------------
+	sectionHeader(list, "Game Passes (forever)", 0)
+	local passButtons = {} -- pass name -> buy button
+	local passNames = sortedNames(Config.GamePasses)
+	for i, name in ipairs(passNames) do
+		passButtons[name] = shopRow(list, i, "Pass_" .. name, Config.GamePasses[name], function(id)
+			MarketplaceService:PromptGamePassPurchase(player, id)
+		end)
 	end
-	rainbowAccum = 0
-	local hue = (os.clock() * 0.25) % 1
-	for _, model in ipairs(CollectionService:GetTagged("RainbowFloatie")) do
-		local i = 0
-		for _, p in ipairs(model:GetChildren()) do
-			if p:IsA("BasePart") and p:GetAttribute("Paint") then
-				i += 1
-				p.Color = Color3.fromHSV((hue + i * 0.07) % 1, 0.7, 1)
+
+	-----------------------------------------------------------------
+	-- Boosts (LayoutOrder 100 header, rows 101, 102, ...)
+	-----------------------------------------------------------------
+	sectionHeader(list, "Boosts", 100)
+	for i, name in ipairs(sortedNames(Config.DevProducts)) do
+		shopRow(list, 100 + i, "Product_" .. name, Config.DevProducts[name], function(id)
+			MarketplaceService:PromptProductPurchase(player, id)
+		end)
+	end
+
+	-----------------------------------------------------------------
+	-- Owned passes: the server sets the "Pass_<name>" attribute, then the
+	-- button turns into a grey "Owned ✓" that can't be clicked
+	-----------------------------------------------------------------
+	local function refreshPasses()
+		for name, b in pairs(passButtons) do
+			if player:GetAttribute("Pass_" .. name) then
+				Kit.setButtonText(b, "Owned ✓")
+				Kit.setEnabled(b, false)
 			end
 		end
 	end
-end)
+	for _, name in ipairs(passNames) do
+		player:GetAttributeChangedSignal("Pass_" .. name):Connect(refreshPasses)
+	end
+	refreshPasses()
 
----------------------------------------------------------------------
--- Tutorial for brand-new players: a hint box + a yellow line and arrow
--- pointing where to go. Steps: buy -> steal -> run home -> defend.
----------------------------------------------------------------------
-local tutorialBox = round(make("Frame", {
-	AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 144), Size = UDim2.new(0.9, 0, 0, 66),
-	BackgroundColor3 = Color3.fromRGB(255, 225, 90), Visible = false,
-}, gui), 12)
-stroke(tutorialBox, WHITE, 3)
-make("UISizeConstraint", { MaxSize = Vector2.new(480, 66) }, tutorialBox)
-local tutorialText = label(tutorialBox, {
-	Position = UDim2.fromOffset(12, 6), Size = UDim2.new(1, -24, 1, -12),
-	TextColor3 = DARK, TextStrokeTransparency = 1, TextWrapped = true,
-})
-make("UITextSizeConstraint", { MaxTextSize = 22 }, tutorialText)
+	return panel
+end
 
-local targetPart = make("Part", {
-	Name = "TutorialTarget", Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
-	Transparency = 1, Size = Vector3.new(1, 1, 1),
-}, nil)
-local targetAtt = make("Attachment", { Name = "Target" }, targetPart)
-local arrowGui = make("BillboardGui", { Size = UDim2.fromOffset(80, 80), StudsOffset = Vector3.new(0, 7, 0), AlwaysOnTop = true }, targetPart)
-label(arrowGui, { Size = UDim2.fromScale(1, 1), Text = "⬇", TextColor3 = Color3.fromRGB(255, 230, 60), TextStrokeTransparency = 0 })
-local beam = make("Beam", {
-	Attachment1 = targetAtt, Color = ColorSequence.new(Color3.fromRGB(255, 230, 60)),
-	Width0 = 0.5, Width1 = 0.5, FaceCamera = true, LightEmission = 1, Segments = 1,
-	Transparency = NumberSequence.new(0.25),
-}, targetPart)
+return Shop
+]]></ProtectedString>
+						<string name="ScriptGuid">{2F2E67F7-D94D-4FB8-BABF-A8D0832D570A}</string>
+						<BinaryString name="AttributesSerialize"></BinaryString>
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+						<string name="Name">Shop</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+						<UniqueId name="UniqueId">25fc82e6d8cb96740acb48d800000943</UniqueId>
+					</Properties>
+				</Item>
+				<Item class="ModuleScript" referent="RBX524B32EA318E43109C86342EF0FC2971">
+					<Properties>
+						<Content name="LinkedSource"><null></null></Content>
+						<ProtectedString name="Source"><![CDATA[--[[
+	Steal a Floatie — Tutorial (ModuleScript child of the ClientMain LocalScript)
+	For brand-new players (the server sets ShowTutorial): a yellow hint box
+	under the top bar, plus a yellow line and a "⬇" arrow in the world
+	pointing where to go.
+	Steps: buy -> steal -> run home -> defend.
+
+	API:
+	  Tutorial.mount(topStack)   -- adds the "TutorialBox" (LayoutOrder 3) to the HUD's TopStack,
+	                             -- then waits for workspace.Map.Bases
+	  Tutorial.update()          -- init calls this every 0.2 s
+]]
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Kit = require(script.Parent.Kit)
+local Notify = require(script.Parent.Notify)
+
+local player = Players.LocalPlayer
+local C = Config.UI
 
 local STEP_TEXT = {
 	"Step 1/4: Follow the yellow line to the Pump Line and press E to BUY a Floatie!",
@@ -1354,20 +1290,33 @@ local STEP_TEXT = {
 	"Step 3/4: RUN back to your base before they POP it with darts!",
 	"Step 4/4: Defend! Press 1 for your Dart Blaster and click thieves. Press E on your red button to LOCK your base.",
 }
-local tutorialStep = 0
+
+local Tutorial = {}
+
+local basesFolder = nil -- workspace.Map.Bases (nil until mount finds it)
+local tutorialBox, tutorialText = nil, nil
+local targetPart, beam = nil, nil
+local tutorialStep = 0  -- 0 = not started, #STEP_TEXT + 1 = done
 local stepStarted = 0
+
+---------------------------------------------------------------------
+-- Helpers
+---------------------------------------------------------------------
 local function setStep(n)
 	tutorialStep = n
 	stepStarted = os.clock()
 	if n > #STEP_TEXT then
 		tutorialBox.Visible = false
 		targetPart.Parent = nil
-		toast("Tutorial done! Catch rare Floaties and let them grow to MEGA 🎈", "success")
+		Notify.toast("Tutorial done! Catch rare Floaties and let them grow to MEGA 🎈", "success")
 	end
 end
+
 local function baseFolderOf(index)
 	return basesFolder:FindFirstChild("Base" .. tostring(index))
 end
+
+-- the floor of the closest base someone else owns (nil if you're alone)
 local function nearestOtherBase(fromPos)
 	local best, bestDist = nil, math.huge
 	for _, b in ipairs(basesFolder:GetChildren()) do
@@ -1383,7 +1332,54 @@ local function nearestOtherBase(fromPos)
 	return best
 end
 
-local function updateTutorial()
+---------------------------------------------------------------------
+-- Mount
+---------------------------------------------------------------------
+
+-- Tutorial.mount(topStack) — builds the (hidden) box and the world
+-- marker, then waits for the map, so init calls it last
+function Tutorial.mount(topStack)
+	if tutorialBox then
+		return
+	end
+	tutorialBox = Kit.plate(topStack, {
+		Name = "TutorialBox", LayoutOrder = 3, Size = UDim2.new(1, 0, 0, 50), Visible = false,
+	}, { color = C.TutorialBox, transparency = 0, radius = 12 })
+	tutorialText = Kit.label(tutorialBox, {
+		Name = "Text", Position = UDim2.fromOffset(10, 4), Size = UDim2.new(1, -20, 1, -8),
+		TextColor3 = C.TextDark, TextWrapped = true,
+	}, { outline = 0, maxTextSize = 18 })
+
+	-- the world marker: an invisible part with the arrow above it; the beam
+	-- runs from your HumanoidRootPart to it. Parented to workspace only
+	-- while there is somewhere to point.
+	targetPart = Kit.make("Part", {
+		Name = "TutorialTarget", Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+		Transparency = 1, Size = Vector3.new(1, 1, 1),
+	}, nil)
+	local targetAtt = Kit.make("Attachment", { Name = "Target" }, targetPart)
+	local arrowGui = Kit.make("BillboardGui", {
+		Size = UDim2.fromOffset(80, 80), StudsOffset = Vector3.new(0, 7, 0), AlwaysOnTop = true,
+	}, targetPart)
+	Kit.label(arrowGui, { Size = UDim2.fromScale(1, 1), Text = "⬇", TextColor3 = C.TutorialArrow }, { outline = 3 })
+	beam = Kit.make("Beam", {
+		Attachment1 = targetAtt, Color = ColorSequence.new(C.TutorialArrow),
+		Width0 = 0.5, Width1 = 0.5, FaceCamera = true, LightEmission = 1, Segments = 1,
+		Transparency = NumberSequence.new(0.25),
+	}, targetPart)
+
+	basesFolder = workspace:WaitForChild("Map"):WaitForChild("Bases")
+end
+
+---------------------------------------------------------------------
+-- Steps
+---------------------------------------------------------------------
+
+-- Tutorial.update() — moves through the steps and points the line
+function Tutorial.update()
+	if not basesFolder then
+		return
+	end
 	if tutorialStep == 0 then
 		if player:GetAttribute("ShowTutorial") then
 			setStep(1)
@@ -1405,10 +1401,12 @@ local function updateTutorial()
 	local text = STEP_TEXT[tutorialStep]
 
 	if tutorialStep == 1 then
+		-- done once you own a Floatie that earns Air
 		if (player:GetAttribute("IncomePerSec") or 0) > 0 then
 			setStep(2)
 			return
 		end
+		-- the Pump Line runs along Z at X = 0: point at the spot beside you
 		target = Vector3.new(0, 2, math.clamp(hrp.Position.Z, -140, 140))
 	elseif tutorialStep == 2 then
 		if carrying then
@@ -1444,51 +1442,2673 @@ local function updateTutorial()
 	if target then
 		targetPart.Position = target
 		targetPart.Parent = workspace
-		local att = hrp:FindFirstChild("TutorialAtt") or make("Attachment", { Name = "TutorialAtt" }, hrp)
+		local att = hrp:FindFirstChild("TutorialAtt") or Kit.make("Attachment", { Name = "TutorialAtt" }, hrp)
 		beam.Attachment0 = att
 	else
 		targetPart.Parent = nil
 	end
 end
 
--- click sound on every HUD button
-for _, d in ipairs(gui:GetDescendants()) do
-	if d:IsA("TextButton") then
-		d.Activated:Connect(function()
-			playSound("Click")
-		end)
+return Tutorial
+]]></ProtectedString>
+						<string name="ScriptGuid">{81597F09-4CC0-4C2D-BB53-0CE25D0FD9B7}</string>
+						<BinaryString name="AttributesSerialize"></BinaryString>
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+						<string name="Name">Tutorial</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+						<UniqueId name="UniqueId">25fc82e6d8cb96740acb48d800000945</UniqueId>
+					</Properties>
+				</Item>
+				<Item class="ModuleScript" referent="RBXF4F0DD8F8188421D996884EEB5BF8F4D">
+					<Properties>
+						<Content name="LinkedSource"><null></null></Content>
+						<ProtectedString name="Source"><![CDATA[--[[
+	Steal a Floatie — Sounds (ModuleScript child of the ClientMain LocalScript)
+	Builds one Sound template per entry in Config.Sounds (edit the ids there)
+	and plays them: flat UI sounds through SoundService, or 3D at a part.
+	Kit buttons play "Click" through Kit.setSoundPlayer(Sounds.play), which
+	init sets up, so Kit never has to require this module.
+
+	API:
+	  Sounds.init()                -- builds the templates, starts Music; safe to call twice
+	  Sounds.play(name, atPart?)   -- no-op for unknown names or "" ids
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local SoundService = game:GetService("SoundService")
+
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+
+local Sounds = {}
+
+local templates = {} -- name -> Sound (in SoundService)
+local started = false
+
+-- same as Kit.make (this module may not require Kit): props first, Parent last
+local function make(className, props, parent)
+	local inst = Instance.new(className)
+	for k, v in pairs(props) do
+		inst[k] = v
+	end
+	inst.Parent = parent
+	return inst
+end
+
+---------------------------------------------------------------------
+-- Setup
+---------------------------------------------------------------------
+
+-- Sounds.init() — builds the templates and starts the looping Music
+function Sounds.init()
+	if started then
+		return
+	end
+	started = true
+	for name, info in pairs(Config.Sounds) do
+		if info.id ~= "" then
+			templates[name] = make("Sound", {
+				Name = name, SoundId = info.id, Volume = info.volume or 0.5,
+				PlaybackSpeed = info.pitch or 1, Looped = name == "Music",
+			}, SoundService)
+		end
+	end
+	if templates.Music then
+		templates.Music:Play()
 	end
 end
 
 ---------------------------------------------------------------------
--- Slow UI loop
+-- Playback
 ---------------------------------------------------------------------
-task.spawn(function()
-	while true do
-		updateTutorial()
-		updatePrompts()
-		updateEvent()
-		updateCarry()
-		if rebirth.Visible then
-			refreshRebirth()
-		end
-		task.wait(0.2)
+
+-- Sounds.play(name, atPart?) — atPart plays it in 3D where it happens
+-- (a copy that cleans itself up); otherwise it plays flat for this player.
+function Sounds.play(name, atPart)
+	local s = templates[name]
+	if not s then
+		return
 	end
-end)
+	if atPart then
+		local copy = s:Clone()
+		copy.RollOffMaxDistance = 150
+		copy.Parent = atPart
+		copy:Play()
+		copy.Ended:Connect(function()
+			copy:Destroy()
+		end)
+	else
+		SoundService:PlayLocalSound(s)
+	end
+end
+
+return Sounds
 ]]></ProtectedString>
-					<bool name="Disabled">false</bool>
-					<Content name="LinkedSource"><null></null></Content>
-					<token name="RunContext">0</token>
-					<string name="ScriptGuid">{79468E3B-E3D0-4203-935B-2F7B5D542182}</string>
-					<BinaryString name="AttributesSerialize"></BinaryString>
-					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-					<bool name="DefinesCapabilities">false</bool>
-					<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
-					<string name="Name">ClientMain</string>
-					<int64 name="SourceAssetId">-1</int64>
-					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
-					<UniqueId name="UniqueId">118bb205a2b353690aca71c2000003e3</UniqueId>
-				</Properties>
+						<string name="ScriptGuid">{77FEBA9F-60F7-4D53-8DF2-1052BE3DAFAF}</string>
+						<BinaryString name="AttributesSerialize"></BinaryString>
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+						<string name="Name">Sounds</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+						<UniqueId name="UniqueId">25fc82e6d8cb96740acb48d800000947</UniqueId>
+					</Properties>
+				</Item>
+				<Item class="ModuleScript" referent="RBXCE8551BACA4241B0953FC84A22CFE84D">
+					<Properties>
+						<Content name="LinkedSource"><null></null></Content>
+						<ProtectedString name="Source"><![CDATA[--[[
+	Steal a Floatie — Rebirth (ModuleScript child of the ClientMain LocalScript)
+	The Rebirth panel: shows your rebirth count, the next cost and the reward,
+	plus a big REBIRTH button. The server checks the cost; the button only
+	turns orange when you can afford it and grey when you can't (it stays
+	clickable either way, same as v0.1.2).
+
+	API:
+	  Rebirth.mount(canvas) -> Panel   -- builds the panel on the "FloatiePanels" Kit canvas
+	  Rebirth.update()                 -- init calls this every 0.2 s; refreshes while open
+]]
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Kit = require(script.Parent.Kit)
+local RebirthRE = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Rebirth")
+
+local player = Players.LocalPlayer
+local C = Config.UI
+
+local Rebirth = {}
+
+---------------------------------------------------------------------
+-- State (filled in by mount)
+---------------------------------------------------------------------
+local panel = nil      -- the Kit Panel
+local infoLabel = nil  -- the rebirth count / cost / reward text
+local rebirthButton = nil
+
+---------------------------------------------------------------------
+-- Refresh: text + button color from the Rebirths and Air attributes
+---------------------------------------------------------------------
+local function refresh()
+	if not infoLabel then
+		return -- not mounted yet
+	end
+	local n = player:GetAttribute("Rebirths") or 0
+	local cost = Config.RebirthCost(n)
+	infoLabel.Text = ("Rebirths: %d\nCost: %s Air\n\nReward: +%d%% Air forever, +%d pedestals\n\nResets your Air and Floaties — you KEEP your best Floatie.")
+		:format(n, Config.Format(cost), math.floor(Config.RebirthIncomeBonus * 100), Config.PedestalsPerRebirth)
+	local canAfford = (player:GetAttribute("Air") or 0) >= cost
+	Kit.setButtonColor(rebirthButton, canAfford and C.Orange or C.Grey)
+end
+
+---------------------------------------------------------------------
+-- Mount
+---------------------------------------------------------------------
+function Rebirth.mount(canvas)
+	if panel then
+		return panel -- already built
+	end
+
+	panel = Kit.panel(canvas, {
+		name = "RebirthPanel",
+		title = "Rebirth",
+		icon = "🌟",
+		color = C.Orange,
+		onOpen = refresh, -- fresh numbers every time the panel pops open
+	})
+	local body = panel.body
+
+	infoLabel = Kit.label(body, {
+		Name = "Info",
+		Position = UDim2.fromOffset(0, 4),
+		Size = UDim2.new(1, 0, 0, 170),
+		TextWrapped = true,
+		TextYAlignment = Enum.TextYAlignment.Top,
+	}, { maxTextSize = 24 })
+
+	rebirthButton = Kit.button(body, {
+		Name = "RebirthButton",
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -4),
+		Size = UDim2.fromOffset(240, 56),
+	}, { text = "REBIRTH", color = C.Grey })
+
+	Kit.onClick(rebirthButton, function()
+		RebirthRE:FireServer()
+		panel:close()
+	end)
+
+	refresh()
+	return panel
+end
+
+---------------------------------------------------------------------
+-- Slow loop hook (init, every 0.2 s)
+---------------------------------------------------------------------
+function Rebirth.update()
+	if panel and panel:isOpen() then
+		refresh()
+	end
+end
+
+return Rebirth
+]]></ProtectedString>
+						<string name="ScriptGuid">{2D37923D-C030-4797-B920-D3DBF3299A0D}</string>
+						<BinaryString name="AttributesSerialize"></BinaryString>
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+						<string name="Name">Rebirth</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+						<UniqueId name="UniqueId">25fc82e6d8cb96740acb48d800000949</UniqueId>
+					</Properties>
+				</Item>
+				<Item class="ModuleScript" referent="RBX23678B8BF7E143059B7007CE03A3FC4B">
+					<Properties>
+						<Content name="LinkedSource"><null></null></Content>
+						<ProtectedString name="Source"><![CDATA[--[[
+	Steal a Floatie — Darts (ModuleScript child of the ClientMain LocalScript)
+	The Dart Blaster: shows the gun cursor while it's equipped, and on click
+	plays the "Dart" sound and asks the server to fire at the mouse
+	(Remotes.FireDart). The server does the aiming checks and the hits;
+	the client cooldown just avoids spamming it.
+
+	API:
+	  Darts.start()   -- hooks the blaster in your Character and Backpack (and after respawns)
+]]
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Sounds = require(script.Parent.Sounds)
+
+local FireDartRE = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("FireDart")
+
+local player = Players.LocalPlayer
+
+local Darts = {}
+
+-- Tool -> true once its events are connected. A plain table on purpose: the
+-- handlers below don't hold the tool, and an Instance's Lua object can be
+-- collected while the tool still exists, so a weak key could vanish and the
+-- tool would get hooked twice. Entries are removed when the tool is destroyed.
+local hooked = {}
+local nextShot = 0
+local started = false
+
+-- Darts.start()
+function Darts.start()
+	if started then
+		return
+	end
+	started = true
+	local mouse = player:GetMouse()
+
+	local function hookTool(tool)
+		if not tool:IsA("Tool") or tool.Name ~= "Dart Blaster" or hooked[tool] then
+			return
+		end
+		hooked[tool] = true
+		tool.Destroying:Connect(function()
+			hooked[tool] = nil
+		end)
+		tool.Equipped:Connect(function()
+			mouse.Icon = "rbxasset://textures/GunCursor.png"
+		end)
+		tool.Unequipped:Connect(function()
+			mouse.Icon = ""
+		end)
+		tool.Activated:Connect(function()
+			local clock = os.clock()
+			if clock < nextShot then
+				return
+			end
+			nextShot = clock + Config.DartCooldown
+			Sounds.play("Dart")
+			FireDartRE:FireServer(mouse.Hit.Position)
+		end)
+	end
+
+	-- the blaster moves between Backpack and Character as you equip it
+	local function watchContainer(container)
+		for _, child in ipairs(container:GetChildren()) do
+			hookTool(child)
+		end
+		container.ChildAdded:Connect(hookTool)
+	end
+
+	player.CharacterAdded:Connect(function(character)
+		watchContainer(character)
+		watchContainer(player:WaitForChild("Backpack")) -- each respawn gets a new Backpack
+	end)
+	if player.Character then
+		watchContainer(player.Character)
+	end
+	watchContainer(player:WaitForChild("Backpack"))
+end
+
+return Darts
+]]></ProtectedString>
+						<string name="ScriptGuid">{00A5E84D-BB51-477B-9078-BCE34D9F1C7F}</string>
+						<BinaryString name="AttributesSerialize"></BinaryString>
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+						<string name="Name">Darts</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+						<UniqueId name="UniqueId">25fc82e6d8cb96740acb48d80000094b</UniqueId>
+					</Properties>
+				</Item>
+				<Item class="ModuleScript" referent="RBX6ADBE67F080E422B852F054A697ABF9E">
+					<Properties>
+						<Content name="LinkedSource"><null></null></Content>
+						<ProtectedString name="Source"><![CDATA[--[[
+	Steal a Floatie — EventBanner (ModuleScript child of the ClientMain LocalScript)
+	The purple box under the top bar while a server event runs
+	("✨ GOLDEN HOUR  2:41" + what it does), and the time-of-day change
+	that goes with each event (Thunderstorm = dusk, Secret Skies = night).
+
+	API:
+	  EventBanner.mount(topStack)   -- adds the "EventBanner" box (LayoutOrder 1) to the HUD's TopStack
+	  EventBanner.update()          -- init calls this every 0.2 s
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Lighting = game:GetService("Lighting")
+local TweenService = game:GetService("TweenService")
+
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Kit = require(script.Parent.Kit)
+
+local C = Config.UI
+
+-- Lighting.ClockTime per event (anything else = 14, early afternoon)
+local EVENT_CLOCK = { Thunderstorm = 18.6, SecretSkies = 0 }
+
+local EventBanner = {}
+
+local box, titleLabel, descLabel = nil, nil, nil
+local currentEvent = ""
+
+-- EventBanner.mount(topStack) — hidden until an event starts
+function EventBanner.mount(topStack)
+	if box then
+		return
+	end
+	box = Kit.plate(topStack, {
+		Name = "EventBanner", LayoutOrder = 1, Size = UDim2.new(1, 0, 0, 38), Visible = false,
+	}, { gradient = true, color = C.EventBanner, radius = 12 })
+	titleLabel = Kit.label(box, {
+		Name = "Title", Position = UDim2.fromOffset(10, 2), Size = UDim2.new(1, -20, 0, 22),
+	}, { maxTextSize = 22 })
+	descLabel = Kit.label(box, {
+		Name = "Desc", Position = UDim2.fromOffset(10, 23), Size = UDim2.new(1, -20, 0, 13), TextColor3 = C.EventDesc,
+	}, { outline = 1 })
+end
+
+-- EventBanner.update() — shows the running event and its time left, and
+-- tweens the sky when the event changes (this part works even if the box
+-- failed to build)
+function EventBanner.update()
+	local name = ReplicatedStorage:GetAttribute("Event") or ""
+	local endsAt = ReplicatedStorage:GetAttribute("EventEndsAt") or 0
+	local left = endsAt - workspace:GetServerTimeNow()
+	local ev = Config.Events[name]
+	if ev and left > 0 then
+		if box then
+			box.Visible = true
+			titleLabel.Text = ev.title .. "  " .. Config.FormatTime(left)
+			descLabel.Text = ev.desc
+		end
+	else
+		if box then
+			box.Visible = false
+		end
+		name = ""
+	end
+	if name ~= currentEvent then
+		currentEvent = name
+		TweenService:Create(Lighting, TweenInfo.new(3), { ClockTime = EVENT_CLOCK[name] or 14 }):Play()
+	end
+end
+
+return EventBanner
+]]></ProtectedString>
+						<string name="ScriptGuid">{3FD28DFD-C61D-42F2-B434-8668F8A476A6}</string>
+						<BinaryString name="AttributesSerialize"></BinaryString>
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+						<string name="Name">EventBanner</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+						<UniqueId name="UniqueId">25fc82e6d8cb96740acb48d80000094d</UniqueId>
+					</Properties>
+				</Item>
+				<Item class="ModuleScript" referent="RBX9D3E084A1CAA408D9952200860C8EA50">
+					<Properties>
+						<Content name="LinkedSource"><null></null></Content>
+						<ProtectedString name="Source"><![CDATA[--[[
+	Steal a Floatie — Prompts (ModuleScript child of the ClientMain LocalScript)
+	Prompt visibility: you only see Steal on other players' bases, and
+	Sell / Lock on your own. The server checks everything again; this just
+	hides prompts that would do nothing for you.
+
+	API:
+	  Prompts.start()    -- waits for workspace.Map.Bases
+	  Prompts.update()   -- init calls this every 0.2 s (does nothing before start)
+]]
+
+local Players = game:GetService("Players")
+local CollectionService = game:GetService("CollectionService")
+
+local player = Players.LocalPlayer
+
+local Prompts = {}
+
+local basesFolder = nil -- workspace.Map.Bases (nil until start finds it)
+
+-- Prompts.start() — waits for the map the server builds
+function Prompts.start()
+	basesFolder = workspace:WaitForChild("Map"):WaitForChild("Bases")
+end
+
+-- Prompts.update() — enables / disables every Steal, Sell and Lock prompt
+function Prompts.update()
+	if not basesFolder then
+		return
+	end
+	local t = workspace:GetServerTimeNow()
+	local carrying = player:GetAttribute("CarryEndsAt") ~= nil
+	for _, ped in ipairs(CollectionService:GetTagged("Pedestal")) do
+		local baseFolder = basesFolder:FindFirstChild("Base" .. tostring(ped:GetAttribute("BaseIndex")))
+		local steal = ped:FindFirstChild("StealPrompt")
+		local sell = ped:FindFirstChild("SellPrompt")
+		if baseFolder and steal and sell then
+			local owner = baseFolder:GetAttribute("OwnerUserId") or 0
+			local has = ped:GetAttribute("HasFloatie") == true and ped:GetAttribute("Unlocked") == true
+			local mine = owner == player.UserId
+			local locked = (baseFolder:GetAttribute("LockedUntil") or 0) > t
+			steal.Enabled = has and not mine and owner ~= 0 and not locked and not carrying
+			sell.Enabled = has and mine
+		end
+	end
+	for _, btn in ipairs(CollectionService:GetTagged("LockButton")) do
+		local baseFolder = basesFolder:FindFirstChild("Base" .. tostring(btn:GetAttribute("BaseIndex")))
+		local pr = btn:FindFirstChild("LockPrompt")
+		if baseFolder and pr then
+			pr.Enabled = baseFolder:GetAttribute("OwnerUserId") == player.UserId
+		end
+	end
+end
+
+return Prompts
+]]></ProtectedString>
+						<string name="ScriptGuid">{9FBA27F4-8A4F-4923-A151-D8069E44AFBE}</string>
+						<BinaryString name="AttributesSerialize"></BinaryString>
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+						<string name="Name">Prompts</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+						<UniqueId name="UniqueId">25fc82e6d8cb96740acb48d80000094f</UniqueId>
+					</Properties>
+				</Item>
+				<Item class="ModuleScript" referent="RBX69286FADEDFB48ECBEF6813962AE2E1F">
+					<Properties>
+						<Content name="LinkedSource"><null></null></Content>
+						<ProtectedString name="Source"><![CDATA[--[[
+	Steal a Floatie — Notify (ModuleScript child of the ClientMain LocalScript)
+	Toasts: the short colored messages above the hotbar ("You stole a
+	Pupfloat!", "Coming soon!", ...). They live on their own "FloatieToasts"
+	screen, so they show above open panels.
+
+	The server sends them through Remotes.Notify (text, kind); client code
+	calls Notify.toast directly. kind picks the color (Config.UI.Toast) and
+	the sound: info (default), success, error, alert, event.
+
+	API:
+	  Notify.mount(canvas)        -- builds the "Toasts" holder, listens to Remotes.Notify
+	  Notify.toast(text, kind?)   -- works before mount too (queued, up to 5)
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Kit = require(script.Parent.Kit)
+local Sounds = require(script.Parent.Sounds)
+
+local NotifyRE = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Notify")
+
+local C = Config.UI
+
+local MAX_SHOWN = 4        -- toasts on screen at once; a 5th pushes the oldest out
+local MAX_QUEUED = 5       -- toasts kept from before mount
+local TOAST_HEIGHT = 26    -- every toast row (long text shrinks to fit instead of growing the row)
+local GAP = 4              -- space between toasts (the UIListLayout padding)
+local HOLDER_HEIGHT = MAX_SHOWN * TOAST_HEIGHT + (MAX_SHOWN - 1) * GAP -- 116: the "Toasts" box fits exactly 4
+local TOAST_SOUNDS = { success = "Buy", error = "Error", alert = "Alert", event = "Event" }
+
+local Notify = {}
+
+local holder = nil  -- the "Toasts" frame (nil until mount)
+local live = {}     -- toast frames on screen, oldest first
+local queued = {}   -- { { text, kind } } waiting for mount
+local toastOrder = 0
+
+---------------------------------------------------------------------
+-- Showing a toast
+---------------------------------------------------------------------
+local function forget(frame)
+	local i = table.find(live, frame)
+	if i then
+		table.remove(live, i)
+	end
+end
+
+-- fade the plate, its text and every outline/border out, then remove it
+local function fadeOut(frame, textLabel)
+	Kit.tween(frame, 0.4, { BackgroundTransparency = 1 })
+	Kit.tween(textLabel, 0.4, { TextTransparency = 1 })
+	for _, d in ipairs(frame:GetDescendants()) do
+		if d:IsA("UIStroke") then
+			Kit.tween(d, 0.4, { Transparency = 1 })
+		end
+	end
+	task.wait(0.45)
+	forget(frame)
+	frame:Destroy()
+end
+
+local function show(text, kind)
+	toastOrder += 1
+	if TOAST_SOUNDS[kind] then
+		Sounds.play(TOAST_SOUNDS[kind])
+	end
+
+	-- make room: with 4 on screen the oldest goes first (all rows are the
+	-- same height, so 4 always fit the holder)
+	while #live >= MAX_SHOWN do
+		table.remove(live, 1):Destroy()
+	end
+
+	local frame = Kit.plate(holder, {
+		Name = "Toast", Size = UDim2.new(1, 0, 0, TOAST_HEIGHT), LayoutOrder = toastOrder, BackgroundTransparency = 0.1,
+	}, { color = C.Toast[kind] or C.Toast.info, radius = 10, border = 2 })
+	local textLabel = Kit.label(frame, {
+		Position = UDim2.fromOffset(8, 2), Size = UDim2.new(1, -16, 1, -4), Text = text,
+		TextWrapped = true, -- a long server message may wrap onto two lines if that keeps its text bigger
+	}, { maxTextSize = 20 })
+	table.insert(live, frame)
+
+	task.delay(if kind == "alert" then 6 else 4, function()
+		if frame.Parent then -- not already pushed out by newer toasts
+			fadeOut(frame, textLabel)
+		end
+	end)
+end
+
+-- Notify.toast(text, kind?) — kind = "info" | "success" | "error" | "alert" | "event"
+function Notify.toast(text, kind)
+	text = tostring(text or "")
+	if not holder then
+		-- too early (the screen isn't built yet): keep the newest few for mount
+		table.insert(queued, { text, kind })
+		if #queued > MAX_QUEUED then
+			table.remove(queued, 1)
+		end
+		return
+	end
+	show(text, kind)
+end
+
+---------------------------------------------------------------------
+-- Mount
+---------------------------------------------------------------------
+
+-- Notify.mount(canvas) — canvas = the FloatieToasts Kit canvas.
+-- Bottom-center, 340x116 virtual px: room for 4 toasts of 26 px, and the
+-- bottom offset keeps them above the Backpack hotbar (see the layout table
+-- in the Stage 1 contract, section 5.3).
+function Notify.mount(canvas)
+	if holder then
+		return
+	end
+	holder = Kit.make("Frame", {
+		Name = "Toasts", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -84),
+		Size = UDim2.fromOffset(340, HOLDER_HEIGHT), BackgroundTransparency = 1,
+	}, canvas)
+	Kit.make("UIListLayout", {
+		VerticalAlignment = Enum.VerticalAlignment.Bottom, HorizontalAlignment = Enum.HorizontalAlignment.Center,
+		Padding = UDim.new(0, GAP), SortOrder = Enum.SortOrder.LayoutOrder,
+	}, holder)
+
+	NotifyRE.OnClientEvent:Connect(Notify.toast)
+
+	-- show anything that arrived before the screen existed
+	local pending = queued
+	queued = {}
+	for _, item in ipairs(pending) do
+		show(item[1], item[2])
+	end
+end
+
+return Notify
+]]></ProtectedString>
+						<string name="ScriptGuid">{6546565A-1E7C-42C0-B3E9-6728BC78A312}</string>
+						<BinaryString name="AttributesSerialize"></BinaryString>
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+						<string name="Name">Notify</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+						<UniqueId name="UniqueId">25fc82e6d8cb96740acb48d800000951</UniqueId>
+					</Properties>
+				</Item>
+				<Item class="ModuleScript" referent="RBX7B5C29B802AB4F9E984DF97587A82E7E">
+					<Properties>
+						<Content name="LinkedSource"><null></null></Content>
+						<ProtectedString name="Source"><![CDATA[--[[
+	Steal a Floatie — HUD (ModuleScript child of the ClientMain LocalScript)
+	The always-on screen, drawn on the "FloatieHUD" Kit canvas:
+	  • TopBar      Sell / Home / Plaza buttons (top-center)
+	  • TopStack    empty list the event / carry / tutorial boxes go into
+	  • LeftMenu    wide rainbow Shop button + a grid of square tiles
+	  • AirPanel    the big rolling Air number (bottom-left) + "+X Air/s"
+	  • BoostBadge  "🚀 +0%" pill above the Air number
+	  • RightStack  "Luck: 1.00x" / "Cash: 1.00x"
+	  • EventTimer  next random event countdown, or the live event (bottom-right)
+	  • Version     game name + version under the timer
+
+	Everything is placed in virtual px on the Kit canvas (at least 800x400,
+	see Kit.createScreen), so nothing overlaps on phones. Only buttons are
+	interactive; plates and labels stay Active = false so they never block
+	the mobile thumbstick.
+
+	API:
+	  HUD.mount(canvas, actions) -> { topStack = Frame }   -- actions.togglePanel(name) opens panels
+	  HUD.update()               -- init calls this every 0.2 s (event timer text)
+	  HUD.addTile(def) -> TextButton
+	      def = { name = "Rebirth", icon = "🌟", color = Color3, order = 60, onClick = function() end }
+	  HUD.setBadge(name, value)  -- name = "Shop" or a tile name; nil / false / 0 hides the badge
+]]
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Kit = require(script.Parent.Kit)
+local Notify = require(script.Parent.Notify)
+
+local player = Players.LocalPlayer
+local C = Config.UI
+
+local HUD = {}
+
+---------------------------------------------------------------------
+-- Sizes (virtual px, see the layout table in the Stage 1 contract)
+---------------------------------------------------------------------
+local MENU_WIDTH = 136         -- LeftMenu: Shop button + 2 tiles side by side
+local SHOP_HEIGHT = 48
+local TILE_SIZE = 64
+local TILE_GAP = 8
+local MAX_TILE_ROWS = 3        -- the final grid is 6 tiles = 3 rows
+local HOME_COOLDOWN = Config.HomeCooldown or 3
+local NEXT_EVENT_TEXT = "Time remaining before the next random event!"
+
+---------------------------------------------------------------------
+-- State (filled in by mount)
+---------------------------------------------------------------------
+local mounted = nil            -- the table mount returned, so a second mount is a no-op
+local leftMenu = nil
+local tilesFrame = nil
+local tileButtons = {}         -- tile name -> TextButton
+local tileCount = 0
+local badges = {}              -- "Shop" / tile name -> Kit Badge
+local timer = nil              -- EventTimer plate
+local timerCaption = nil
+local timerTime = nil
+local timerGradient = nil      -- purple gradient, only enabled during an event
+local timerLive = false        -- true while the plate shows a running event
+
+---------------------------------------------------------------------
+-- Helpers
+---------------------------------------------------------------------
+-- recolor a Kit.plate({ gradient = true }) with the same light-to-dark
+-- gradient Kit paints it with
+local function paintPlate(plate, color)
+	local g = plate:FindFirstChild("Gradient")
+	if g then
+		g.Color = ColorSequence.new(Kit.shade(color, 0.3), Kit.shade(color, -0.2))
+	end
+end
+
+-- LeftMenu grows UPWARD as tile rows are added (its bottom edge is fixed):
+-- h = 48 + 8 + rows*64 + (rows-1)*8, or just 48 with no tiles
+local function layoutLeftMenu()
+	if not leftMenu then
+		return
+	end
+	local rows = math.min(math.ceil(tileCount / 2), MAX_TILE_ROWS)
+	local h = SHOP_HEIGHT
+	if rows > 0 then
+		h = SHOP_HEIGHT + TILE_GAP + rows * TILE_SIZE + (rows - 1) * TILE_GAP
+	end
+	leftMenu.Size = UDim2.fromOffset(MENU_WIDTH, h)
+end
+
+-- how far to lift the event timer (virtual px) so the touch jump button
+-- never covers it. Roblox's TouchJump puts the button's TOP edge 90 real px
+-- above the bottom on small screens (min side <= 500: 70 px button at
+-- 1,-90) and 210 real px above it on big ones (120 px button at 1,-210);
+-- we clear that by ~10 px. The cap keeps the timer below the RightStack
+-- (8 px gap): 132 on a 400-high canvas, more on taller ones (tablets).
+local function timerLift()
+	local lift = 0
+	if UserInputService.TouchEnabled then
+		local screen = Kit.getScreenSize()
+		local liftPx = if math.min(screen.X, screen.Y) <= 500 then 100 else 220
+		local cap = math.floor(Kit.getCanvasSize().Y / 2) - 68
+		lift = math.max(0, math.min(math.ceil(liftPx / Kit.getScale()), cap))
+	end
+	return lift
+end
+
+-- dark plate normally, purple gradient while an event is running
+local function setTimerLive(live)
+	if live == timerLive then
+		return
+	end
+	timerLive = live
+	if live then
+		timer.BackgroundColor3 = Color3.new(1, 1, 1)
+		timer.BackgroundTransparency = 0
+		timerGradient.Enabled = true
+	else
+		timer.BackgroundColor3 = C.HudBg
+		timer.BackgroundTransparency = 0.15
+		timerGradient.Enabled = false
+	end
+end
+
+---------------------------------------------------------------------
+-- Tiles (square buttons under the Shop button)
+---------------------------------------------------------------------
+function HUD.addTile(def)
+	assert(tilesFrame, "HUD.addTile: call HUD.mount first")
+	if tileButtons[def.name] then
+		return tileButtons[def.name] -- one tile per name
+	end
+
+	local tile = Kit.button(tilesFrame, {
+		Name = def.name, Size = UDim2.fromOffset(TILE_SIZE, TILE_SIZE), LayoutOrder = def.order or 0,
+	}, { text = "", color = def.color or C.Blue })
+	-- big emoji in the top 62%, small caption in the bottom 32%
+	Kit.label(tile.Face, {
+		Name = "Icon", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 3),
+		Size = UDim2.new(1, -10, 0.62, -3), Text = def.icon or "", ZIndex = 3,
+	}, { outline = 0 })
+	Kit.label(tile.Face, {
+		Name = "Caption", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -3),
+		Size = UDim2.new(1, -6, 0.32, 0), Text = def.name, ZIndex = 3,
+	}, { maxTextSize = 14 })
+
+	-- the badge sits on the hitbox (not the Face) so it doesn't grow on hover
+	local badge = Kit.badge(tile)
+	badge:set(nil)
+	badges[def.name] = badge
+
+	Kit.onClick(tile, function()
+		if def.onClick then
+			def.onClick()
+		end
+	end)
+
+	tileButtons[def.name] = tile
+	tileCount += 1
+	layoutLeftMenu()
+	return tile
+end
+
+function HUD.setBadge(name, value)
+	local badge = badges[name]
+	if badge then
+		badge:set(value)
+	end
+end
+
+---------------------------------------------------------------------
+-- Event timer (called by init every 0.2 s)
+---------------------------------------------------------------------
+function HUD.update()
+	if not timerTime then -- not mounted (or mount failed before the timer was built)
+		return
+	end
+	local now = workspace:GetServerTimeNow()
+	local name = ReplicatedStorage:GetAttribute("Event") or ""
+	local endsAt = tonumber(ReplicatedStorage:GetAttribute("EventEndsAt")) or 0
+	local ev = Config.Events[name]
+	if ev and endsAt - now > 0 then
+		setTimerLive(true)
+		timerCaption.Text = ev.title
+		timerTime.Text = Config.FormatTime(endsAt - now)
+	else
+		setTimerLive(false)
+		timerCaption.Text = NEXT_EVENT_TEXT
+		local nextAt = tonumber(ReplicatedStorage:GetAttribute("NextEventAt"))
+		if nextAt and nextAt - now > 0 then
+			timerTime.Text = Config.FormatTime(nextAt - now)
+		else
+			timerTime.Text = "Soon!" -- not published yet, or it passed while the server was empty
+		end
+	end
+end
+
+---------------------------------------------------------------------
+-- Mount: builds the whole HUD on the given Kit canvas
+---------------------------------------------------------------------
+function HUD.mount(canvas, actions)
+	if mounted then
+		return mounted
+	end
+	actions = actions or {}
+
+	local function togglePanel(name)
+		if actions.togglePanel then
+			actions.togglePanel(name)
+		end
+	end
+	local function comingSoon()
+		Notify.toast("Coming soon!", "info")
+	end
+
+	-----------------------------------------------------------------
+	-- TopBar: Sell / Home / Plaza (3 x 96 + 2 x 12 = 312 wide)
+	-----------------------------------------------------------------
+	local topBar = Kit.make("Frame", {
+		Name = "TopBar", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 6),
+		Size = UDim2.fromOffset(312, 46), BackgroundTransparency = 1,
+	}, canvas)
+	Kit.make("UIListLayout", {
+		FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 12),
+		HorizontalAlignment = Enum.HorizontalAlignment.Center, VerticalAlignment = Enum.VerticalAlignment.Center,
+		SortOrder = Enum.SortOrder.LayoutOrder,
+	}, topBar)
+
+	local function topButton(name, text, color, order)
+		return Kit.button(topBar, {
+			Name = name, Size = UDim2.fromOffset(96, 46), LayoutOrder = order,
+		}, { text = text, color = color, maxTextSize = 24 })
+	end
+	local sell = topButton("Sell", "💰 Sell", C.Green, 1)
+	local home = topButton("Home", "🏠 Home", C.Blue, 2)
+	local plaza = topButton("Plaza", "🏝️ Plaza", C.Purple, 3)
+
+	Kit.onClick(sell, comingSoon)  -- selling from the HUD arrives in Stage 4
+	Kit.onClick(plaza, comingSoon) -- the Plaza arrives in Stage 9
+
+	-- Home asks the server to teleport us to our base spawn. The server has
+	-- the real rate limit; this client-side one just avoids spamming it.
+	local lastHome = -math.huge
+	local warnedNoRemote = false
+	Kit.onClick(home, function()
+		local clock = os.clock()
+		if clock - lastHome < HOME_COOLDOWN then
+			return
+		end
+		lastHome = clock
+		-- looked up at click time (never WaitForChild) so an old server can't hang the HUD
+		local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+		local remote = remotes and remotes:FindFirstChild("RequestHome")
+		if remote and remote:IsA("RemoteEvent") then
+			remote:FireServer()
+		elseif not warnedNoRemote then
+			warnedNoRemote = true
+			warn("[HUD] Remotes.RequestHome is missing, so the Home button does nothing")
+		end
+	end)
+
+	-- no Home while carrying a stolen Floatie (the server refuses it too)
+	local function refreshHome()
+		Kit.setEnabled(home, player:GetAttribute("CarryEndsAt") == nil)
+	end
+	player:GetAttributeChangedSignal("CarryEndsAt"):Connect(refreshHome)
+	refreshHome()
+
+	-----------------------------------------------------------------
+	-- TopStack: CORE puts the EventBanner / CarryBox / TutorialBox in
+	-- here; hidden boxes take no space in the list
+	-----------------------------------------------------------------
+	local topStack = Kit.make("Frame", {
+		Name = "TopStack", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 58),
+		Size = UDim2.fromOffset(360, 134), BackgroundTransparency = 1,
+	}, canvas)
+	Kit.make("UIListLayout", {
+		FillDirection = Enum.FillDirection.Vertical, Padding = UDim.new(0, 4),
+		HorizontalAlignment = Enum.HorizontalAlignment.Center, SortOrder = Enum.SortOrder.LayoutOrder,
+	}, topStack)
+
+	-----------------------------------------------------------------
+	-- LeftMenu: wide Shop button on top, tile grid below. Anchored at
+	-- its bottom-left, so extra tile rows grow it upward.
+	-----------------------------------------------------------------
+	leftMenu = Kit.make("Frame", {
+		Name = "LeftMenu", AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 8, 1, -106),
+		Size = UDim2.fromOffset(MENU_WIDTH, SHOP_HEIGHT), BackgroundTransparency = 1,
+	}, canvas)
+
+	local shop = Kit.button(leftMenu, {
+		Name = "Shop", Position = UDim2.fromOffset(0, 0), Size = UDim2.fromOffset(MENU_WIDTH, SHOP_HEIGHT),
+	}, { text = "🛒 SHOP", color = C.Yellow, maxTextSize = 26 })
+	Kit.rainbowBorder(shop)
+	Kit.shine(shop)
+	local shopBadge = Kit.badge(shop)
+	shopBadge:set(nil)
+	badges.Shop = shopBadge
+	Kit.onClick(shop, function()
+		togglePanel("Shop")
+	end)
+
+	tilesFrame = Kit.make("Frame", {
+		Name = "Tiles", Position = UDim2.fromOffset(0, SHOP_HEIGHT + TILE_GAP),
+		Size = UDim2.new(1, 0, 1, -(SHOP_HEIGHT + TILE_GAP)), BackgroundTransparency = 1,
+	}, leftMenu)
+	Kit.make("UIGridLayout", {
+		CellSize = UDim2.fromOffset(TILE_SIZE, TILE_SIZE), CellPadding = UDim2.fromOffset(TILE_GAP, TILE_GAP),
+		FillDirectionMaxCells = 2, SortOrder = Enum.SortOrder.LayoutOrder,
+	}, tilesFrame)
+
+	-- Stage 1 tiles (final grid orders: Inventory 10, Index 20, Rewards 30,
+	-- Upgrades 40, Items 50, Rebirth 60, Codes 70)
+	HUD.addTile({ name = "Rebirth", icon = "🌟", color = C.Orange, order = 60, onClick = function()
+		togglePanel("Rebirth")
+	end })
+	HUD.addTile({ name = "Codes", icon = "🎁", color = C.Blue, order = 70, onClick = function()
+		togglePanel("Codes")
+	end })
+
+	-----------------------------------------------------------------
+	-- AirPanel: cash icon + big rolling Air number + income line
+	-----------------------------------------------------------------
+	local airPanel = Kit.plate(canvas, {
+		Name = "AirPanel", AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 8, 1, -8),
+		Size = UDim2.fromOffset(210, 62),
+	}, { radius = 16 })
+
+	local icon = Kit.plate(airPanel, {
+		Name = "Icon", Position = UDim2.fromOffset(6, 6), Size = UDim2.fromOffset(50, 50),
+	}, { color = C.Yellow, gradient = true, radius = 25, border = 2 })
+	Kit.label(icon, {
+		Name = "Emoji", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.new(1, -10, 1, -10), Text = "💵",
+	}, { outline = 0 })
+
+	-- holder for the pulse UIScale, resting at (62, 2) with size (1-70, 40).
+	-- UIScale grows around the AnchorPoint, so anchoring at the left-middle
+	-- makes the left-aligned number grow to the right, away from the icon
+	local airHolder = Kit.make("Frame", {
+		Name = "AirHolder", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 62, 0, 22),
+		Size = UDim2.new(1, -70, 0, 40), BackgroundTransparency = 1,
+	}, airPanel)
+	local airScale = Kit.make("UIScale", { Name = "Pulse", Scale = 1 }, airHolder)
+	local airText = Kit.label(airHolder, {
+		Name = "AirText", Size = UDim2.fromScale(1, 1), TextXAlignment = Enum.TextXAlignment.Left,
+	}, { outline = 3, maxTextSize = 38 })
+
+	local incomeText = Kit.label(airPanel, {
+		Name = "IncomeText", Position = UDim2.fromOffset(62, 42), Size = UDim2.new(1, -70, 0, 16),
+		TextXAlignment = Enum.TextXAlignment.Left, TextColor3 = C.Income,
+	})
+	local function refreshIncome()
+		incomeText.Text = "+" .. Config.Format(tonumber(player:GetAttribute("IncomePerSec")) or 0) .. " Air/s"
+	end
+	player:GetAttributeChangedSignal("IncomePerSec"):Connect(refreshIncome)
+	refreshIncome()
+
+	-- pulse: pop up to `peak`, then spring back to 1 (a newer pulse cancels an older one)
+	local pulseTween = nil
+	local function pulse(peak)
+		if pulseTween then
+			pulseTween:Cancel()
+		end
+		local up = Kit.tween(airScale, 0.08, { Scale = peak }, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+		pulseTween = up
+		up.Completed:Connect(function(state)
+			if state == Enum.PlaybackState.Completed and pulseTween == up then
+				pulseTween = Kit.tween(airScale, 0.3, { Scale = 1 }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+			end
+		end)
+	end
+
+	-- count-up: the server sends Air once a second; the number glides from
+	-- what's shown to the new value (quad-out), and drops fast on spending
+	local hasAir = player:GetAttribute("Air") ~= nil
+	local shown = tonumber(player:GetAttribute("Air")) or 0
+	local glideFrom, glideTo, glideStart, glideTime = shown, shown, 0, 1
+	local gliding = false
+	local lastAirText = nil
+
+	local function showAir()
+		local text = Config.Format(shown)
+		if text ~= lastAirText then -- only touch .Text when the string changes
+			lastAirText = text
+			airText.Text = text
+		end
+	end
+
+	player:GetAttributeChangedSignal("Air"):Connect(function()
+		local target = tonumber(player:GetAttribute("Air")) or 0
+		if not hasAir then
+			-- first value after the save loads: jump straight there (no fake roll-up)
+			hasAir = true
+			shown = target
+			glideTo = target
+			gliding = false
+			showAir()
+			return
+		end
+		-- the real change since the last server value (glideTo), not the gap to
+		-- the partly glided number on screen: a big 1.2 s glide is still ~3%
+		-- short at the next 1 s tick, and that leftover must not pulse "big" again
+		local gain = target - glideTo
+		local seconds
+		if target >= shown then
+			local income = tonumber(player:GetAttribute("IncomePerSec")) or 0
+			local big = gain > 20 * math.max(income, 1)
+			seconds = if big then 1.2 else 0.9
+			if gain > 0 then
+				pulse(if big then 1.2 else 1.06)
+			end
+		else
+			seconds = 0.15 -- spending: fast drop
+		end
+		glideFrom, glideTo, glideStart, glideTime = shown, target, os.clock(), seconds
+		gliding = true
+	end)
+
+	RunService.RenderStepped:Connect(function()
+		if not gliding then
+			return
+		end
+		local a = math.clamp((os.clock() - glideStart) / glideTime, 0, 1)
+		local eased = 1 - (1 - a) ^ 2
+		shown = glideFrom + (glideTo - glideFrom) * eased
+		if a >= 1 then
+			shown = glideTo
+			gliding = false
+		end
+		showAir()
+	end)
+	showAir()
+
+	-----------------------------------------------------------------
+	-- BoostBadge: "🚀 +0%" (grey at 0, orange when boosted)
+	-----------------------------------------------------------------
+	local boost = Kit.plate(canvas, {
+		Name = "BoostBadge", AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 8, 1, -74),
+		Size = UDim2.fromOffset(84, 22),
+	}, { gradient = true, color = C.Grey, radius = 11, border = 2 })
+	local boostText = Kit.label(boost, {
+		Name = "Label", Position = UDim2.fromOffset(4, 1), Size = UDim2.new(1, -8, 1, -2),
+	}, { maxTextSize = 18 })
+	local function refreshBoost()
+		local p = tonumber(player:GetAttribute("BoostPercent")) or 0
+		boostText.Text = "🚀 " .. Kit.formatPercent(p)
+		paintPlate(boost, if p > 0 then C.Orange else C.Grey)
+	end
+	player:GetAttributeChangedSignal("BoostPercent"):Connect(refreshBoost)
+	refreshBoost()
+
+	-----------------------------------------------------------------
+	-- RightStack: Luck / Cash multipliers (2 x 31 + 6 = 68 tall)
+	-----------------------------------------------------------------
+	local rightStack = Kit.make("Frame", {
+		Name = "RightStack", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.5, -44),
+		Size = UDim2.fromOffset(150, 68), BackgroundTransparency = 1,
+	}, canvas)
+	Kit.make("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }, rightStack)
+
+	local function statPlate(name, order, color, attribute, prefix)
+		local plate = Kit.plate(rightStack, {
+			Name = name, Size = UDim2.fromOffset(150, 31), LayoutOrder = order,
+		}, { radius = 12 })
+		local text = Kit.label(plate, {
+			Name = "Label", Position = UDim2.fromOffset(8, 2), Size = UDim2.new(1, -16, 1, -4),
+			TextXAlignment = Enum.TextXAlignment.Left, TextColor3 = color,
+		}, { maxTextSize = 22 })
+		local function refresh()
+			text.Text = prefix .. Kit.formatMult(tonumber(player:GetAttribute(attribute)) or 1)
+		end
+		player:GetAttributeChangedSignal(attribute):Connect(refresh)
+		refresh()
+	end
+	statPlate("Luck", 1, C.Luck, "LuckMultiplier", "🍀 Luck: ")
+	statPlate("Cash", 2, C.Cash, "CashMultiplier", "💰 Cash: ")
+
+	-----------------------------------------------------------------
+	-- EventTimer (text is filled in by HUD.update)
+	-----------------------------------------------------------------
+	timer = Kit.plate(canvas, {
+		Name = "EventTimer", AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -8, 1, -14),
+		Size = UDim2.fromOffset(190, 56),
+	})
+	timerGradient = Kit.gradient(timer, Kit.shade(C.Purple, 0.3), Kit.shade(C.Purple, -0.2))
+	timerGradient.Enabled = false
+	timerLive = false
+	-- the 44-character caption wraps onto two lines: 30 px tall with a thin
+	-- outline so it stays readable at phone scale (~0.8)
+	timerCaption = Kit.label(timer, {
+		Name = "Caption", Position = UDim2.fromOffset(8, 2), Size = UDim2.new(1, -16, 0, 30),
+		TextWrapped = true, Text = NEXT_EVENT_TEXT,
+	}, { outline = 1, maxTextSize = 14 })
+	timerTime = Kit.label(timer, {
+		Name = "Time", Position = UDim2.fromOffset(8, 32), Size = UDim2.new(1, -16, 0, 22), Text = "Soon!",
+	}, { outline = 3, maxTextSize = 22 })
+
+	-- on touch screens, lift the timer above the jump button
+	local function placeTimer()
+		timer.Position = UDim2.new(1, -8, 1, -(14 + timerLift()))
+	end
+	placeTimer()
+	Kit.ScaleChanged:Connect(placeTimer)
+	-- also on any screen resize: the jump button size rule can change even
+	-- when the scale doesn't (e.g. the first layout at scale 1)
+	canvas:GetPropertyChangedSignal("AbsoluteSize"):Connect(placeTimer)
+
+	-----------------------------------------------------------------
+	-- Version (under the timer)
+	-----------------------------------------------------------------
+	Kit.label(canvas, {
+		Name = "Version", AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -8, 1, -2),
+		Size = UDim2.fromOffset(150, 10), TextXAlignment = Enum.TextXAlignment.Right, TextTransparency = 0.4,
+		Text = Config.GameName .. " v" .. Config.Version,
+	}, { outline = 1 })
+
+	HUD.update() -- fill the timer now instead of waiting for init's first loop
+
+	mounted = { topStack = topStack }
+	return mounted
+end
+
+return HUD
+]]></ProtectedString>
+						<string name="ScriptGuid">{9044D3CB-9A26-430E-8ABF-BCA050C803E9}</string>
+						<BinaryString name="AttributesSerialize"></BinaryString>
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+						<string name="Name">HUD</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+						<UniqueId name="UniqueId">25fc82e6d8cb96740acb48d800000953</UniqueId>
+					</Properties>
+				</Item>
+				<Item class="ModuleScript" referent="RBXD5CA9C6A9F904F989CF718518008C331">
+					<Properties>
+						<Content name="LinkedSource"><null></null></Content>
+						<ProtectedString name="Source"><![CDATA[--[[
+	Steal a Floatie — Effects (ModuleScript child of the ClientMain LocalScript)
+	Client-side visuals that never touch gameplay:
+	  • the "Pop" sound where a Floatie pops
+	  • Rainbow Floaties cycling their colors (runs on each client, saves bandwidth)
+	  • every Floatie bobbing and squishing like a real balloon (Config.Feel)
+
+	API:
+	  Effects.start()
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local CollectionService = game:GetService("CollectionService")
+
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Sounds = require(script.Parent.Sounds)
+
+local Effects = {}
+
+local started = false
+
+---------------------------------------------------------------------
+-- Pops happen on the server as a Part named "PopEffect": play the
+-- sound where it happens
+---------------------------------------------------------------------
+local function startPops()
+	workspace.ChildAdded:Connect(function(child)
+		if child.Name == "PopEffect" and child:IsA("BasePart") then
+			Sounds.play("Pop", child)
+		end
+	end)
+end
+
+---------------------------------------------------------------------
+-- Rainbow Floaties: every 0.1 s, repaint each "Paint" part of every
+-- RainbowFloatie model with a hue that drifts over time
+---------------------------------------------------------------------
+local function startRainbow()
+	local rainbowAccum = 0
+	RunService.RenderStepped:Connect(function(dt)
+		rainbowAccum += dt
+		if rainbowAccum < 0.1 then
+			return
+		end
+		rainbowAccum = 0
+		local hue = (os.clock() * 0.25) % 1
+		for _, model in ipairs(CollectionService:GetTagged("RainbowFloatie")) do
+			local i = 0
+			for _, p in ipairs(model:GetChildren()) do
+				if p:IsA("BasePart") and p:GetAttribute("Paint") then
+					i += 1
+					p.Color = Color3.fromHSV((hue + i * 0.07) % 1, 0.7, 1)
+				end
+			end
+		end
+	end)
+end
+
+---------------------------------------------------------------------
+-- Floatie feel: every Floatie bobs and squishes like a real balloon.
+-- Purely visual: it only changes each part's SpecialMesh Offset/Scale, so it
+-- never fights the server over where a Floatie is. Tune it in Config.Feel.
+-- (Custom FloatieMeshes models have no SpecialMesh, so they stay still.)
+---------------------------------------------------------------------
+local Feel = Config.Feel
+local feelCache = {} -- model -> { phase, active, parts = { { mesh, rel } } }
+
+local function buildFeel(model)
+	local root = model.PrimaryPart
+	if not root then
+		return nil
+	end
+	local rootCF = root.CFrame
+	local parts = {}
+	for _, part in ipairs(model:GetChildren()) do
+		local mesh = part:IsA("BasePart") and part:FindFirstChildOfClass("SpecialMesh")
+		if mesh then
+			table.insert(parts, { mesh = mesh, rel = rootCF:ToObjectSpace(part.CFrame) })
+		end
+	end
+	local pos = rootCF.Position
+	return { phase = (pos.X * 0.37 + pos.Z * 0.61) % (math.pi * 2), active = false, parts = parts }
+end
+
+-- how much a part's local axis v stretches when the model is scaled (sxz, sy, sxz)
+local function axisScale(v, sy, sxz)
+	return math.sqrt((sxz * v.X) ^ 2 + (sy * v.Y) ^ 2 + (sxz * v.Z) ^ 2)
+end
+
+-- stretch the model around its feet: sy = height factor, sxz = width factor, lift = bob
+local function applyFeel(info, sy, sxz, lift)
+	for _, pt in ipairs(info.parts) do
+		local rel = pt.rel
+		local p = rel.Position
+		local delta = Vector3.new(p.X * (sxz - 1), p.Y * (sy - 1) + lift, p.Z * (sxz - 1))
+		pt.mesh.Offset = rel:VectorToObjectSpace(delta)
+		pt.mesh.Scale = Vector3.new(axisScale(rel.XVector, sy, sxz), axisScale(rel.YVector, sy, sxz), axisScale(rel.ZVector, sy, sxz))
+	end
+end
+
+local function watchFloatie(model)
+	model.ChildAdded:Connect(function()
+		feelCache[model] = nil -- rebuild once its parts finish arriving
+	end)
+end
+
+local function startFeel()
+	for _, model in ipairs(CollectionService:GetTagged("Floatie")) do
+		watchFloatie(model)
+	end
+	CollectionService:GetInstanceAddedSignal("Floatie"):Connect(watchFloatie)
+	CollectionService:GetInstanceRemovedSignal("Floatie"):Connect(function(model)
+		feelCache[model] = nil
+	end)
+
+	RunService.RenderStepped:Connect(function()
+		local camPos = workspace.CurrentCamera.CFrame.Position
+		local t = os.clock()
+		for _, model in ipairs(CollectionService:GetTagged("Floatie")) do
+			local root = model.PrimaryPart
+			if root and model:IsDescendantOf(workspace) then
+				local info = feelCache[model]
+				if info == nil then
+					info = buildFeel(model)
+					feelCache[model] = info
+				end
+				if info then
+					if (root.Position - camPos).Magnitude <= Feel.AnimDistance then
+						local s = math.sin(t * Feel.SquishSpeed + info.phase) * Feel.SquishAmount
+						local lift = Feel.BobHeight * (0.5 + 0.5 * math.sin(t * Feel.BobSpeed + info.phase))
+						applyFeel(info, 1 + s, 1 - s * 0.5, lift)
+						info.active = true
+					elseif info.active then
+						applyFeel(info, 1, 1, 0)
+						info.active = false
+					end
+				end
+			end
+		end
+	end)
+end
+
+---------------------------------------------------------------------
+-- Start
+---------------------------------------------------------------------
+
+-- Effects.start()
+function Effects.start()
+	if started then
+		return
+	end
+	started = true
+	startPops()
+	startRainbow()
+	startFeel()
+end
+
+return Effects
+]]></ProtectedString>
+						<string name="ScriptGuid">{B3376EBC-3D84-4183-9F80-ACD26B488DEE}</string>
+						<BinaryString name="AttributesSerialize"></BinaryString>
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+						<string name="Name">Effects</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+						<UniqueId name="UniqueId">25fc82e6d8cb96740acb48d800000955</UniqueId>
+					</Properties>
+				</Item>
+				<Item class="ModuleScript" referent="RBX31FC56DA95C8472EB242E1A69B2EEBAD">
+					<Properties>
+						<Content name="LinkedSource"><null></null></Content>
+						<ProtectedString name="Source"><![CDATA[--[[
+	Steal a Floatie — Codes (ModuleScript child of the ClientMain LocalScript)
+	The Codes panel: type a code, press REDEEM, and the server's answer shows
+	below the box in green (redeemed) or red (error). The codes themselves
+	live in Config.Codes on the server side.
+
+	API:
+	  Codes.mount(canvas) -> Panel   -- builds the panel on the "FloatiePanels" Kit canvas
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Kit = require(script.Parent.Kit)
+local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+local RedeemRF = Remotes:WaitForChild("RedeemCode")
+
+local C = Config.UI
+
+local Codes = {}
+
+local panel = nil -- the Kit Panel, once mounted
+
+---------------------------------------------------------------------
+-- Mount
+---------------------------------------------------------------------
+function Codes.mount(canvas)
+	if panel then
+		return panel -- already built
+	end
+
+	panel = Kit.panel(canvas, {
+		name = "CodesPanel",
+		title = "Codes",
+		icon = "🎁",
+		color = C.Blue,
+	})
+	local body = panel.body
+
+	Kit.label(body, {
+		Name = "Subtitle",
+		Position = UDim2.fromOffset(18, 0),
+		Size = UDim2.new(1, -36, 0, 26),
+		Text = "Follow us for new codes!",
+		TextColor3 = C.TextDark,
+	}, { outline = 0 })
+
+	-- white text box with a dark border
+	local codeBox = Kit.make("TextBox", {
+		Name = "CodeBox",
+		Position = UDim2.fromOffset(18, 34),
+		Size = UDim2.new(1, -36, 0, 56),
+		BackgroundColor3 = C.Input,
+		BorderSizePixel = 0,
+		Font = Kit.FONT,
+		TextScaled = true,
+		TextColor3 = C.TextDark,
+		PlaceholderText = "Enter code",
+		Text = "",
+		ClearTextOnFocus = false,
+	}, body)
+	Kit.round(codeBox, 10)
+	Kit.stroke(codeBox, C.Outline, 3)
+	-- keep the typed text off the rounded edges
+	Kit.make("UIPadding", {
+		PaddingLeft = UDim.new(0, 12),
+		PaddingRight = UDim.new(0, 12),
+		PaddingTop = UDim.new(0, 8),
+		PaddingBottom = UDim.new(0, 8),
+	}, codeBox)
+
+	local codeResult = Kit.label(body, {
+		Name = "Result",
+		Position = UDim2.fromOffset(18, 100),
+		Size = UDim2.new(1, -36, 0, 34),
+	})
+
+	local redeem = Kit.button(body, {
+		Name = "Redeem",
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -8),
+		Size = UDim2.fromOffset(220, 56),
+	}, { text = "REDEEM", color = C.Pink })
+
+	-- one request at a time; the server replies (success, message)
+	local redeeming = false
+	Kit.onClick(redeem, function()
+		if redeeming then
+			return
+		end
+		redeeming = true
+		local ok, success, msg = pcall(RedeemRF.InvokeServer, RedeemRF, codeBox.Text)
+		if ok then
+			codeResult.Text = msg or ""
+			codeResult.TextColor3 = if success then C.Good else C.Bad
+		end
+		redeeming = false
+	end)
+
+	return panel
+end
+
+return Codes
+]]></ProtectedString>
+						<string name="ScriptGuid">{7699FF2C-2C47-451A-B372-2372E2033507}</string>
+						<BinaryString name="AttributesSerialize"></BinaryString>
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+						<string name="Name">Codes</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+						<UniqueId name="UniqueId">25fc82e6d8cb96740acb48d800000957</UniqueId>
+					</Properties>
+				</Item>
+				<Item class="ModuleScript" referent="RBXF6F6FDEE3BF941709760D6F0CE99AB83">
+					<Properties>
+						<Content name="LinkedSource"><null></null></Content>
+						<ProtectedString name="Source"><![CDATA[--[[
+	Steal a Floatie — Kit (ModuleScript child of the ClientMain LocalScript)
+	The UI toolkit every screen and panel is built with:
+	  • screens with one responsive "Canvas": lay out in virtual px, Kit scales it for phones
+	  • chunky white text with a thick dark outline (UIStroke, never the old text stroke)
+	  • rounded gradient buttons that grow on hover, squish on click and play the click sound
+	  • dark HUD plates, panels with a bright header bar and a big red X
+	  • red "!" badges that wiggle, rainbow borders, shine sweeps
+	  • rarity colors, number formatting, and 3D Floatie previews (used from Stage 4)
+	Kit only needs Config and FloatieModel, and builds nothing when it is required:
+	the modules that own the UI call these functions from their mount/start.
+]]
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local FloatieModel = require(Shared:WaitForChild("FloatieModel"))
+
+local Kit = {}
+
+---------------------------------------------------------------------
+-- Constants
+---------------------------------------------------------------------
+Kit.FONT = Enum.Font.FredokaOne
+Kit.C = Config.UI                    -- theme colors (edit them in Config.UI)
+Kit.REF_SIZE = Vector2.new(800, 400) -- the smallest virtual canvas (see createScreen)
+Kit.MAX_SCALE = 1.4                  -- never draw the UI bigger than 140%
+
+local C = Kit.C
+local WHITE = Color3.new(1, 1, 1)
+local BLACK = Color3.new(0, 0, 0)
+
+---------------------------------------------------------------------
+-- Internal state. Keys are weak, so a destroyed button / panel /
+-- preview is simply forgotten. (An Instance's Lua object can be
+-- collected while the Instance still exists, so a weak key only stays
+-- put while something else holds it: here the key's own connection
+-- closures do.)
+---------------------------------------------------------------------
+local buttons = setmetatable({}, { __mode = "k" })          -- hitbox -> button state
+local pressedButtons = setmetatable({}, { __mode = "k" })   -- hitbox -> true while held down
+local panels = setmetatable({}, { __mode = "k" })           -- Panel -> true
+local previews = setmetatable({}, { __mode = "k" })         -- ViewportFrame -> Preview
+-- Nothing else holds a rainbow gradient (callers may drop the return value),
+-- so this one is a plain table; the rainbow loop removes destroyed ones.
+local rainbowGradients = {}                                  -- UIGradient -> true
+-- Floatie preview models, one per "floatieId|mutId" (false = failed to build).
+-- String keys are never collected, so this one is a plain table.
+local templates = {}
+
+local warned = {}
+local function warnOnce(key, message)
+	if not warned[key] then
+		warned[key] = true
+		warn("[Kit] " .. message)
+	end
+end
+
+-- Builders take (parent, props, opts). As a safety net they also accept the
+-- short form (props, opts) with no parent, and option keys mixed into props:
+-- Instance properties are always PascalCase and options never are, so a
+-- known lowercase option key found in props is moved over to opts.
+-- Returns fresh tables, so the caller's tables are never changed.
+local function splitArgs(parent, props, opts, optionKeys)
+	if parent ~= nil and typeof(parent) ~= "Instance" then
+		parent, props, opts = nil, parent, props
+	end
+	local cleanProps, cleanOpts = {}, {}
+	if opts then
+		for k, v in pairs(opts) do
+			cleanOpts[k] = v
+		end
+	end
+	if props then
+		for k, v in pairs(props) do
+			if optionKeys[k] then
+				if cleanOpts[k] == nil then
+					cleanOpts[k] = v -- opts wins when both are given
+				end
+			else
+				cleanProps[k] = v
+			end
+		end
+	end
+	return parent, cleanProps, cleanOpts
+end
+
+---------------------------------------------------------------------
+-- Basic builders
+---------------------------------------------------------------------
+
+-- Kit.make(className, props?, parent?) -> Instance
+-- Same as the old make(): sets every prop, then sets Parent last.
+function Kit.make(className, props, parent)
+	local inst = Instance.new(className)
+	if props then
+		for k, v in pairs(props) do
+			if k ~= "Parent" then
+				inst[k] = v
+			end
+		end
+		parent = parent or props.Parent
+	end
+	inst.Parent = parent
+	return inst
+end
+
+-- Kit.round(inst, radius?) -> inst   (adds a UICorner, default 12)
+function Kit.round(inst, radius)
+	Kit.make("UICorner", { CornerRadius = UDim.new(0, radius or 12) }, inst)
+	return inst
+end
+
+-- Kit.stroke(inst, color?, thickness?) -> UIStroke
+-- A border-mode stroke named "Border". NOTE: returns the stroke, not inst.
+function Kit.stroke(inst, color, thickness)
+	return Kit.make("UIStroke", {
+		Name = "Border", Color = color or C.Outline, Thickness = thickness or 3,
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Border, LineJoinMode = Enum.LineJoinMode.Round,
+	}, inst)
+end
+
+-- Kit.gradient(inst, top, bottom, rotation?) -> UIGradient named "Gradient"
+-- rotation 90 (the default) runs top to bottom.
+function Kit.gradient(inst, top, bottom, rotation)
+	return Kit.make("UIGradient", {
+		Name = "Gradient", Color = ColorSequence.new(top, bottom), Rotation = rotation or 90,
+	}, inst)
+end
+
+-- Kit.shade(color, amount) -> Color3
+-- amount > 0 moves toward white, amount < 0 toward black (0.3 = 30% of the way).
+function Kit.shade(color, amount)
+	if amount > 0 then
+		return color:Lerp(WHITE, math.min(amount, 1))
+	elseif amount < 0 then
+		return color:Lerp(BLACK, math.min(-amount, 1))
+	end
+	return color
+end
+
+-- Kit.tween(inst, seconds, props, style?, direction?) -> Tween (already playing)
+function Kit.tween(inst, seconds, props, style, direction)
+	local info = TweenInfo.new(seconds, style or Enum.EasingStyle.Quad, direction or Enum.EasingDirection.Out)
+	local tween = TweenService:Create(inst, info, props)
+	tween:Play()
+	return tween
+end
+
+-- the light-to-dark look every button, plate and header uses
+local function faceColors(color)
+	return ColorSequence.new(Kit.shade(color, 0.3), Kit.shade(color, -0.2))
+end
+
+---------------------------------------------------------------------
+-- Screens and responsive scale.
+-- Everything is laid out in virtual px on a Canvas of at least 800x400
+-- (exactly that in the tighter direction), then scaled by one UIScale.
+---------------------------------------------------------------------
+local scaleEvent = Instance.new("BindableEvent")
+-- Kit.ScaleChanged:Connect(function(scale) ... end)
+-- Fires when the scale changes, and also when the real screen size changes
+-- (layout such as the HUD's touch lift depends on both).
+Kit.ScaleChanged = scaleEvent.Event
+
+local primaryGui = nil -- the first screen created: getScale and friends read it
+local currentScale = 1
+
+-- Kit.createScreen(name, displayOrder) -> (ScreenGui, Canvas Frame)
+function Kit.createScreen(name, displayOrder)
+	local gui = Kit.make("ScreenGui", {
+		Name = name, ResetOnSpawn = false, ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+		IgnoreGuiInset = false, ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets, DisplayOrder = displayOrder,
+	})
+	local canvas = Kit.make("Frame", {
+		Name = "Canvas", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
+		BackgroundTransparency = 1,
+	}, gui)
+	local uiScale = Kit.make("UIScale", { Name = "CanvasScale" }, canvas)
+
+	local isPrimary = primaryGui == nil
+	if isPrimary then
+		primaryGui = gui
+	end
+	local lastSize = nil
+
+	local function rescale()
+		local abs = gui.AbsoluteSize
+		local s = 1
+		if abs.X > 0 and abs.Y > 0 then
+			s = math.clamp(math.min(abs.X / Kit.REF_SIZE.X, abs.Y / Kit.REF_SIZE.Y), 0.3, Kit.MAX_SCALE)
+		end
+		uiScale.Scale = s
+		-- the canvas is 1/s of the screen, so after scaling it fills the screen exactly
+		canvas.Size = UDim2.fromScale(1 / s, 1 / s)
+		if isPrimary then
+			local changed = s ~= currentScale or abs ~= lastSize
+			currentScale = s
+			lastSize = abs
+			if changed then
+				scaleEvent:Fire(s)
+			end
+		end
+	end
+
+	gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(rescale)
+	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+	rescale()
+	return gui, canvas
+end
+
+-- Kit.getScale() -> number (1 until the first screen exists)
+function Kit.getScale()
+	return currentScale
+end
+
+-- Kit.getScreenSize() -> Vector2 (real px of the first screen)
+function Kit.getScreenSize()
+	if primaryGui then
+		return primaryGui.AbsoluteSize
+	end
+	local camera = workspace.CurrentCamera
+	return if camera then camera.ViewportSize else Kit.REF_SIZE
+end
+
+-- Kit.getCanvasSize() -> Vector2 (virtual px of the first screen's canvas)
+function Kit.getCanvasSize()
+	return Kit.getScreenSize() / currentScale
+end
+
+---------------------------------------------------------------------
+-- Sound hook (init registers Sounds.play, so Kit never requires Sounds)
+---------------------------------------------------------------------
+local soundPlayer = nil
+
+-- Kit.setSoundPlayer(fn: (name) -> ())
+function Kit.setSoundPlayer(fn)
+	soundPlayer = fn
+end
+
+-- Kit.playSound(name) — safe no-op until a sound player is registered
+function Kit.playSound(name)
+	if not soundPlayer then
+		return
+	end
+	local ok, err = pcall(soundPlayer, name)
+	if not ok then
+		warnOnce("sound", "sound player failed: " .. tostring(err))
+	end
+end
+
+---------------------------------------------------------------------
+-- Outlined text
+---------------------------------------------------------------------
+local LABEL_OPTS = { outline = true, outlineColor = true, maxTextSize = true }
+
+-- Kit.label(parent?, props?, opts?) -> TextLabel
+-- opts = { outline = 2 (0 = none), outlineColor = C.Outline, maxTextSize = nil }
+function Kit.label(parent, props, opts)
+	parent, props, opts = splitArgs(parent, props, opts, LABEL_OPTS)
+	local base = {
+		BackgroundTransparency = 1, Font = Kit.FONT, TextScaled = true, TextColor3 = C.Text,
+		Text = "",
+	}
+	for k, v in pairs(props) do
+		base[k] = v
+	end
+	base.TextStrokeTransparency = 1 -- the outline is the UIStroke below, never the old text stroke
+	local lbl = Kit.make("TextLabel", base)
+
+	local outline = opts.outline or 2
+	if outline > 0 then
+		Kit.make("UIStroke", {
+			Name = "Outline", ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
+			Color = opts.outlineColor or C.Outline, Thickness = outline, LineJoinMode = Enum.LineJoinMode.Round,
+		}, lbl)
+	end
+	if opts.maxTextSize then
+		Kit.make("UITextSizeConstraint", { MaxTextSize = opts.maxTextSize }, lbl)
+	end
+	if parent then
+		lbl.Parent = parent
+	end
+	return lbl
+end
+
+---------------------------------------------------------------------
+-- Chunky buttons.
+-- The returned TextButton is an invisible hitbox; the look lives in
+-- hitbox.Face (gradient + border) and hitbox.Face.Label. Animations
+-- only resize the Face, so layouts never move.
+---------------------------------------------------------------------
+local BUTTON_OPTS = {
+	text = true, color = true, textColor = true, maxTextSize = true,
+	radius = true, border = true, sound = true, animate = true,
+}
+-- look props that belong on the Face, not the hitbox (safety net)
+local BUTTON_LOOK_PROPS = { Text = "text", TextColor3 = "textColor", BackgroundColor3 = "color" }
+
+local HOVER_SCALE = 1.08
+local PRESS_SCALE = 0.9
+
+local function lastInputWasTouch()
+	return UserInputService:GetLastInputType() == Enum.UserInputType.Touch
+end
+
+-- repaint the Face gradient (skipped when the color is already showing)
+local function paint(st, color)
+	if st.painted ~= color then
+		st.painted = color
+		st.gradient.Color = faceColors(color)
+	end
+end
+
+local function sizeFace(st, scale, seconds, style)
+	st.tween = Kit.tween(st.face, seconds, { Size = UDim2.fromScale(scale, scale) }, style)
+end
+
+-- lift a hovered button above its neighbours (and put it back)
+local function raise(button, st, up)
+	if up and not st.raised then
+		st.raised = true
+		button.ZIndex += 1
+	elseif not up and st.raised then
+		st.raised = false
+		button.ZIndex -= 1
+	end
+end
+
+-- snap a button back to its resting look (not hovered, not pressed)
+local function resetButton(button)
+	local st = buttons[button]
+	if not st then
+		return
+	end
+	st.hovered = false
+	pressedButtons[button] = nil
+	if st.tween then
+		st.tween:Cancel()
+		st.tween = nil
+	end
+	st.face.Size = UDim2.fromScale(1, 1)
+	raise(button, st, false)
+end
+
+-- the press ended: spring back (safe to call twice)
+local function release(button)
+	if not pressedButtons[button] then
+		return
+	end
+	pressedButtons[button] = nil
+	local st = buttons[button]
+	if st and st.animate and st.enabled then
+		sizeFace(st, if st.hovered then HOVER_SCALE else 1, 0.35, Enum.EasingStyle.Back)
+	end
+end
+
+-- MouseButton1Up doesn't fire when the finger/mouse slides off a button
+-- before letting go, so one shared listener releases any held button.
+local releaseConn = nil
+local function watchReleases()
+	if releaseConn then
+		return
+	end
+	releaseConn = UserInputService.InputEnded:Connect(function(input)
+		local kind = input.UserInputType
+		if kind == Enum.UserInputType.MouseButton1 or kind == Enum.UserInputType.Touch then
+			for button in pairs(pressedButtons) do
+				release(button)
+			end
+		end
+	end)
+end
+
+-- Kit.button(parent?, props?, opts?) -> TextButton
+-- props: layout only (Name, Position, Size, AnchorPoint, LayoutOrder, ZIndex, Visible)
+-- opts = { text = "", color = C.Green, textColor = C.Text, maxTextSize = 28,
+--          radius = 12, border = 3, sound = "Click" (false = silent), animate = true }
+function Kit.button(parent, props, opts)
+	parent, props, opts = splitArgs(parent, props, opts, BUTTON_OPTS)
+	for prop, opt in pairs(BUTTON_LOOK_PROPS) do
+		if props[prop] ~= nil then
+			if opts[opt] == nil then
+				opts[opt] = props[prop]
+			end
+			props[prop] = nil
+		end
+	end
+	local color = opts.color or C.Green
+	local border = opts.border or 3
+
+	local base = { BackgroundTransparency = 1, Text = "", AutoButtonColor = false, Size = UDim2.fromOffset(120, 44) }
+	for k, v in pairs(props) do
+		base[k] = v
+	end
+	local hitbox = Kit.make("TextButton", base)
+
+	local face = Kit.make("Frame", {
+		Name = "Face", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromScale(1, 1), BackgroundColor3 = WHITE, BorderSizePixel = 0, ZIndex = 1,
+	}, hitbox)
+	Kit.round(face, opts.radius or 12)
+	local gradient = Kit.gradient(face, Kit.shade(color, 0.3), Kit.shade(color, -0.2), 90)
+	local borderStroke = Kit.stroke(face, C.Outline, border)
+	borderStroke.Enabled = border > 0
+	local label = Kit.label(face, {
+		Name = "Label", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.new(1, -10, 1, -6), ZIndex = 3, Text = opts.text or "", TextColor3 = opts.textColor or C.Text,
+	}, { outline = 2, maxTextSize = opts.maxTextSize or 28 })
+
+	local st = {
+		face = face, label = label, gradient = gradient, border = borderStroke,
+		color = color, painted = color, enabled = true,
+		animate = opts.animate ~= false,
+		sound = if opts.sound == false then false else (opts.sound or "Click"),
+		hovered = false, raised = false, tween = nil,
+	}
+	buttons[hitbox] = st
+
+	hitbox.MouseEnter:Connect(function()
+		if lastInputWasTouch() then
+			return -- touch screens have no hover (a tap would leave it stuck big)
+		end
+		st.hovered = true
+		if st.animate and st.enabled then
+			raise(hitbox, st, true)
+			if not pressedButtons[hitbox] then
+				sizeFace(st, HOVER_SCALE, 0.12)
+			end
+		end
+	end)
+	hitbox.MouseLeave:Connect(function()
+		st.hovered = false
+		pressedButtons[hitbox] = nil
+		if st.animate and st.enabled then
+			raise(hitbox, st, false)
+			sizeFace(st, 1, 0.12)
+		end
+	end)
+	hitbox.MouseButton1Down:Connect(function()
+		if st.animate and st.enabled then
+			pressedButtons[hitbox] = true
+			watchReleases()
+			sizeFace(st, PRESS_SCALE, 0.07)
+		end
+	end)
+	hitbox.MouseButton1Up:Connect(function()
+		release(hitbox)
+	end)
+	-- the global click sound: every Kit button clicks, including later ones
+	hitbox.Activated:Connect(function()
+		if st.enabled and st.sound then
+			Kit.playSound(st.sound)
+		end
+	end)
+
+	if parent then
+		hitbox.Parent = parent
+	end
+	return hitbox
+end
+
+-- Kit.onClick(button, fn) -> RBXScriptConnection
+-- Use this instead of button.Activated: fn only runs while the button is enabled.
+function Kit.onClick(button, fn)
+	return button.Activated:Connect(function()
+		if Kit.isEnabled(button) then
+			fn()
+		end
+	end)
+end
+
+-- Kit.setButtonText(button, text) — sets button.Face.Label.Text
+function Kit.setButtonText(button, text)
+	local st = buttons[button]
+	local label = st and st.label
+	if not label then
+		local face = button:FindFirstChild("Face")
+		label = face and face:FindFirstChild("Label")
+	end
+	if label then
+		label.Text = text
+	elseif button:IsA("TextButton") then
+		button.Text = text -- a plain, non-Kit button
+	end
+end
+
+-- Kit.setButtonColor(button, color) — remembers it; repaints unless disabled
+function Kit.setButtonColor(button, color)
+	local st = buttons[button]
+	if not st then
+		button.BackgroundColor3 = color -- a plain, non-Kit button
+		return
+	end
+	st.color = color
+	if st.enabled then
+		paint(st, color)
+	end
+end
+
+-- Kit.setEnabled(button, enabled)
+-- Disabled = not clickable, grey gradient, faded text, no animations.
+function Kit.setEnabled(button, enabled)
+	enabled = enabled and true or false
+	button.Interactable = enabled
+	local st = buttons[button]
+	if not st then
+		return
+	end
+	st.enabled = enabled
+	if enabled then
+		paint(st, st.color)
+		st.label.TextTransparency = 0
+	else
+		resetButton(button)
+		paint(st, C.Grey)
+		st.label.TextTransparency = 0.25
+	end
+end
+
+-- Kit.isEnabled(button) -> boolean (true for unknown / non-Kit buttons)
+function Kit.isEnabled(button)
+	local st = buttons[button]
+	if st == nil then
+		return true
+	end
+	return st.enabled
+end
+
+---------------------------------------------------------------------
+-- Plates (dark HUD backgrounds and colored boxes)
+---------------------------------------------------------------------
+local PLATE_OPTS = { color = true, transparency = true, gradient = true, radius = true, border = true }
+
+-- Kit.plate(parent?, props?, opts?) -> Frame
+-- opts = { color = C.HudBg, transparency = 0.15 (0 with gradient), gradient = false,
+--          radius = 14, border = 3 (0 = no stroke) }
+function Kit.plate(parent, props, opts)
+	parent, props, opts = splitArgs(parent, props, opts, PLATE_OPTS)
+	local color = opts.color or C.HudBg
+	local border = opts.border or 3
+	local base = { BorderSizePixel = 0, Active = false }
+	if opts.gradient then
+		base.BackgroundColor3 = WHITE -- the "Gradient" below supplies the color
+		base.BackgroundTransparency = opts.transparency or 0
+	else
+		base.BackgroundColor3 = color
+		base.BackgroundTransparency = opts.transparency or 0.15
+	end
+	for k, v in pairs(props) do
+		base[k] = v
+	end
+	local plate = Kit.make("Frame", base)
+	Kit.round(plate, opts.radius or 14)
+	if opts.gradient then
+		Kit.gradient(plate, Kit.shade(color, 0.3), Kit.shade(color, -0.2))
+	end
+	if border > 0 then
+		Kit.stroke(plate, C.Outline, border)
+	end
+	if parent then
+		plate.Parent = parent
+	end
+	return plate
+end
+
+---------------------------------------------------------------------
+-- Panels (Shop / Rebirth / Codes / ...). Only one is open at a time:
+-- opening one closes the others, like the old toggle().
+---------------------------------------------------------------------
+local Panel = {}
+Panel.__index = Panel
+
+local HEADER_HEIGHT = 48
+local FILLER_HEIGHT = 18
+
+-- run a panel callback without letting its errors break the caller
+local function runCallback(fn)
+	if fn then
+		task.spawn(fn)
+	end
+end
+
+-- hide at once, no animation (another panel is opening)
+function Panel:_hideNow()
+	if self._tween then
+		self._tween:Cancel()
+		self._tween = nil
+	end
+	local wasOpen = self._open
+	self._open = false
+	self.frame.Visible = false
+	self._pop.Scale = 1
+	if wasOpen then
+		runCallback(self._onClose)
+	end
+end
+
+-- panel:open() — closes every other panel instantly, then pops this one in
+function Panel:open()
+	for other in pairs(panels) do
+		if other ~= self and (other._open or other.frame.Visible) then
+			other:_hideNow()
+		end
+	end
+	if self._open then
+		return
+	end
+	if self._tween then
+		self._tween:Cancel() -- stop a close that is still playing
+	end
+	-- the X can be left in its hover size if the panel closed under the mouse
+	resetButton(self.closeButton)
+	self._open = true
+	self.frame.Visible = true
+	self._pop.Scale = 0.6
+	self._tween = Kit.tween(self._pop, 0.3, { Scale = 1 }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+	runCallback(self._onOpen)
+end
+
+-- panel:close() — quick shrink, then hide
+function Panel:close()
+	if not self._open then
+		return
+	end
+	self._open = false
+	if self._tween then
+		self._tween:Cancel()
+	end
+	local tween = Kit.tween(self._pop, 0.1, { Scale = 0.85 }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+	self._tween = tween
+	tween.Completed:Connect(function(state)
+		-- skipped when open() cancelled this close
+		if state == Enum.PlaybackState.Completed and self._tween == tween then
+			self._tween = nil
+			self.frame.Visible = false
+			self._pop.Scale = 1
+		end
+	end)
+	runCallback(self._onClose)
+end
+
+function Panel:toggle()
+	if self._open then
+		self:close()
+	else
+		self:open()
+	end
+end
+
+function Panel:isOpen()
+	return self._open
+end
+
+-- Kit.panel(parent, opts) -> Panel { frame, header, body, closeButton, open, close, toggle, isOpen }
+-- opts = { title, icon?, color = C.Blue, size = Vector2.new(460, 330), name = title .. "Panel",
+--          onOpen?, onClose? }
+-- Put all content in panel.body (436x262 virtual px at the default size).
+function Kit.panel(parent, opts)
+	if opts == nil and parent ~= nil and typeof(parent) ~= "Instance" then
+		parent, opts = nil, parent
+	end
+	opts = opts or {}
+	local title = opts.title or ""
+	local color = opts.color or C.Blue
+	local size = opts.size or Vector2.new(460, 330)
+	local top, bottom = Kit.shade(color, 0.3), Kit.shade(color, -0.2)
+
+	local frame = Kit.make("Frame", {
+		Name = opts.name or (title .. "Panel"),
+		AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.5, 20),
+		Size = UDim2.fromOffset(size.X, size.Y), BackgroundColor3 = WHITE, BorderSizePixel = 0,
+		Visible = false,
+		Active = true, -- clicks on a panel must not fire the Dart Blaster
+	})
+	Kit.round(frame, 18)
+	Kit.gradient(frame, C.PanelTop, C.PanelBottom)
+	Kit.stroke(frame, C.Outline, 4)
+	local pop = Kit.make("UIScale", { Name = "PopScale" }, frame)
+
+	-- bright header bar: rounded on top, square at the bottom
+	local header = Kit.make("Frame", {
+		Name = "Header", Size = UDim2.new(1, 0, 0, HEADER_HEIGHT), BackgroundColor3 = WHITE, BorderSizePixel = 0,
+	}, frame)
+	Kit.round(header, 18)
+	Kit.gradient(header, top, bottom)
+	-- the filler covers the header's lower rounded corners; its gradient matches
+	-- the header's bottom part exactly, so there is no seam
+	local filler = Kit.make("Frame", {
+		Name = "Filler", AnchorPoint = Vector2.new(0, 1), Position = UDim2.fromScale(0, 1),
+		Size = UDim2.new(1, 0, 0, FILLER_HEIGHT), BackgroundColor3 = WHITE, BorderSizePixel = 0, ZIndex = 1,
+	}, header)
+	Kit.gradient(filler, top:Lerp(bottom, (HEADER_HEIGHT - FILLER_HEIGHT) / HEADER_HEIGHT), bottom)
+	-- a dark line under the bar, like the button borders
+	Kit.make("Frame", {
+		Name = "Divider", Position = UDim2.fromScale(0, 1), Size = UDim2.new(1, 0, 0, 3),
+		BackgroundColor3 = C.Outline, BorderSizePixel = 0, ZIndex = 2,
+	}, header)
+	Kit.label(header, {
+		Name = "Title", Position = UDim2.fromOffset(16, 4), Size = UDim2.new(1, -80, 1, -8), ZIndex = 3,
+		Text = (if opts.icon then opts.icon .. " " else "") .. title, TextXAlignment = Enum.TextXAlignment.Left,
+	}, { outline = 3, maxTextSize = 32 })
+
+	-- the big red X, sticking out of the top-right corner
+	local closeButton = Kit.button(frame, {
+		Name = "Close", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(1, -8, 0, 8),
+		Size = UDim2.fromOffset(46, 46), ZIndex = 5,
+	}, { text = "X", color = C.Red, maxTextSize = 30 })
+
+	local body = Kit.make("Frame", {
+		Name = "Body", BackgroundTransparency = 1, Position = UDim2.fromOffset(12, 56), Size = UDim2.new(1, -24, 1, -68),
+	}, frame)
+
+	local panel = setmetatable({
+		frame = frame, header = header, body = body, closeButton = closeButton,
+		_open = false, _pop = pop, _tween = nil, _onOpen = opts.onOpen, _onClose = opts.onClose,
+	}, Panel)
+	Kit.onClick(closeButton, function()
+		panel:close()
+	end)
+	panels[panel] = true
+	frame.Destroying:Connect(function()
+		panels[panel] = nil
+	end)
+
+	if parent then
+		frame.Parent = parent
+	end
+	return panel
+end
+
+-- Kit.closeAllPanels()
+function Kit.closeAllPanels()
+	for panel in pairs(panels) do
+		if panel._open then
+			panel:close()
+		end
+	end
+end
+
+---------------------------------------------------------------------
+-- Badge: the red "!" / number circle on a button
+---------------------------------------------------------------------
+local WIGGLE = { -14, 12, -8, 0 }
+
+-- Kit.badge(target, opts?) -> Badge { frame, set(self, value) }
+-- opts = { color = C.Red, size = 26 }. Pass the button hitbox (not its Face),
+-- so the badge doesn't grow with the hover animation.
+function Kit.badge(target, opts)
+	opts = opts or {}
+	local size = opts.size or 26
+	local frame = Kit.make("Frame", {
+		Name = "Badge", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(1, -4, 0, 4),
+		Size = UDim2.fromOffset(size, size), BackgroundColor3 = opts.color or C.Red, BorderSizePixel = 0,
+		ZIndex = 5, Visible = false, Active = false,
+	})
+	Kit.make("UICorner", { CornerRadius = UDim.new(0.5, 0) }, frame) -- a circle (a pill when wider)
+	Kit.stroke(frame, C.Outline, 2)
+	local text = Kit.label(frame, {
+		Name = "Label", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.new(1, -6, 1, -6), ZIndex = 6,
+	}, { outline = 2 })
+	frame.Parent = target
+
+	-- wiggle now, then every 2.5 s while visible; ends when hidden or removed
+	local wiggling = false
+	local function startWiggle()
+		if wiggling then
+			return
+		end
+		wiggling = true
+		task.spawn(function()
+			while frame.Parent and frame.Visible do
+				for _, angle in ipairs(WIGGLE) do
+					if not frame.Parent then
+						break
+					end
+					Kit.tween(frame, 0.08, { Rotation = angle })
+					task.wait(0.08)
+				end
+				task.wait(2.5)
+			end
+			wiggling = false
+		end)
+	end
+
+	local badge = { frame = frame }
+	-- badge:set(nil | false | 0) hides it, true shows "!", a number shows it (99+ above 99),
+	-- a string shows as-is
+	function badge:set(value)
+		local shown
+		if value == nil or value == false or value == 0 then
+			shown = nil
+		elseif value == true then
+			shown = "!"
+		elseif type(value) == "number" then
+			shown = if value > 99 then "99+" else tostring(value)
+		else
+			shown = tostring(value)
+		end
+		if shown == nil then
+			frame.Visible = false
+			return
+		end
+		text.Text = shown
+		-- widen into a pill for 3+ characters
+		local extra = math.max(0, (utf8.len(shown) or #shown) - 2)
+		frame.Size = UDim2.fromOffset(size + extra * math.floor(size * 0.35), size)
+		frame.Visible = true
+		startWiggle()
+	end
+	return badge
+end
+
+---------------------------------------------------------------------
+-- Rainbow border: one shared RenderStepped spins every rainbow gradient
+---------------------------------------------------------------------
+local rainbowConn = nil
+local function startRainbowLoop()
+	if rainbowConn then
+		return
+	end
+	rainbowConn = RunService.RenderStepped:Connect(function()
+		local rotation = (os.clock() * 120) % 360
+		local any = false
+		for g in pairs(rainbowGradients) do
+			if g.Parent == nil then
+				rainbowGradients[g] = nil -- destroyed (or replaced by a newer rainbowBorder)
+			else
+				g.Rotation = rotation
+				any = true
+			end
+		end
+		if not any then
+			rainbowConn:Disconnect()
+			rainbowConn = nil
+		end
+	end)
+end
+
+-- Kit.rainbowBorder(target, thickness?) -> UIGradient
+-- Works on a Kit button (uses its Face border) or any GuiObject.
+function Kit.rainbowBorder(target, thickness)
+	local st = buttons[target]
+	local border = st and st.border
+	if not border then
+		border = target:FindFirstChild("Border")
+		if not (border and border:IsA("UIStroke")) then
+			border = Kit.stroke(target)
+		end
+	end
+	border.Color = WHITE -- the gradient tints white; any other color would darken it
+	border.Thickness = thickness or 4
+	border.Enabled = true
+	local old = border:FindFirstChild("Rainbow")
+	if old then
+		old:Destroy()
+	end
+	local keypoints = {}
+	for i = 0, 6 do
+		table.insert(keypoints, ColorSequenceKeypoint.new(i / 6, Color3.fromHSV(i / 6, 0.85, 1)))
+	end
+	local g = Kit.make("UIGradient", { Name = "Rainbow", Color = ColorSequence.new(keypoints) }, border)
+	rainbowGradients[g] = true
+	startRainbowLoop()
+	return g
+end
+
+---------------------------------------------------------------------
+-- Shine: a soft white band that sweeps across every few seconds
+---------------------------------------------------------------------
+
+-- Kit.shine(target, interval?) -> Frame (the "Shine" overlay)
+function Kit.shine(target, interval)
+	local st = buttons[target]
+	local host = if st then st.face else target
+	local overlay = Kit.make("Frame", {
+		Name = "Shine", Size = UDim2.fromScale(1, 1), BackgroundColor3 = WHITE, BorderSizePixel = 0,
+		ZIndex = 2, Active = false, -- under the button Label (ZIndex 3)
+	})
+	local corner = host:FindFirstChildOfClass("UICorner")
+	if corner then
+		Kit.make("UICorner", { CornerRadius = corner.CornerRadius }, overlay)
+	end
+	local g = Kit.make("UIGradient", {
+		Name = "Gradient", Rotation = 20, Offset = Vector2.new(-1, 0),
+		Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 1),
+			NumberSequenceKeypoint.new(0.4, 1),
+			NumberSequenceKeypoint.new(0.5, 0.35),
+			NumberSequenceKeypoint.new(0.6, 1),
+			NumberSequenceKeypoint.new(1, 1),
+		}),
+	}, overlay)
+	overlay.Parent = host
+
+	task.spawn(function()
+		while overlay.Parent do
+			g.Offset = Vector2.new(-1, 0)
+			Kit.tween(g, 0.6, { Offset = Vector2.new(1, 0) }, Enum.EasingStyle.Linear)
+			task.wait(0.6)
+			task.wait(interval or 3)
+		end
+	end)
+	return overlay
+end
+
+---------------------------------------------------------------------
+-- Rarity colors and number formatting
+---------------------------------------------------------------------
+
+-- Kit.rarityColor(rarity) -> Color3 (falls back to Common)
+function Kit.rarityColor(rarity)
+	local info = Config.Rarities[rarity] or Config.Rarities.Common
+	return info.color
+end
+
+-- Kit.rarityTextColor(rarity) -> Color3 (Secret is black, so its text is white)
+function Kit.rarityTextColor(rarity)
+	if rarity == "Secret" then
+		return WHITE
+	end
+	return Kit.rarityColor(rarity)
+end
+
+Kit.format = Config.Format         -- 12345 -> "12.3K"
+Kit.formatTime = Config.FormatTime -- 75 -> "1:15"
+
+-- Kit.formatMult(1) -> "1.00x"
+function Kit.formatMult(x)
+	return string.format("%.2fx", tonumber(x) or 1)
+end
+
+-- Kit.formatPercent(100) -> "+100%"
+function Kit.formatPercent(p)
+	return string.format("+%d%%", math.floor((tonumber(p) or 0) + 0.5))
+end
+
+---------------------------------------------------------------------
+-- 3D Floatie previews (ViewportFrames). Built for Stage 4's lists:
+-- a model is only cloned while its preview is actually on screen, and
+-- every Floatie + mutation is built once and cloned from then on.
+---------------------------------------------------------------------
+local VIEWPORT_OPTS = { spin = true }
+local VIEW_DIR = Vector3.new(0.9, 0.45, 0.9).Unit -- camera sits front-right-above (head points +X)
+local SPIN_SPEED = 0.6 -- radians per second when opts.spin is on
+
+local Preview = {}
+Preview.__index = Preview
+
+local function overlaps(pos, size, otherPos, otherSize)
+	return pos.X < otherPos.X + otherSize.X and otherPos.X < pos.X + size.X
+		and pos.Y < otherPos.Y + otherSize.Y and otherPos.Y < pos.Y + size.Y
+end
+
+-- visible, big enough, inside every clipping ancestor, and its ScreenGui is on
+local function isOnScreen(frame)
+	if not frame.Visible then
+		return false
+	end
+	local size = frame.AbsoluteSize
+	if size.X < 1 or size.Y < 1 then
+		return false
+	end
+	local pos = frame.AbsolutePosition
+	local node = frame.Parent
+	while node do
+		if node:IsA("LayerCollector") then
+			return node.Enabled and node:IsDescendantOf(game)
+		end
+		if node:IsA("GuiObject") then
+			if not node.Visible then
+				return false
+			end
+			if node:IsA("ScrollingFrame") or node.ClipsDescendants then
+				if not overlaps(pos, size, node.AbsolutePosition, node.AbsoluteSize) then
+					return false
+				end
+			end
+		end
+		node = node.Parent
+	end
+	return false -- not inside any ScreenGui / BillboardGui / SurfaceGui
+end
+
+-- the shared template for a preview's Floatie (built on first use)
+local function getTemplate(preview)
+	local key = preview._key
+	local template = templates[key]
+	if template == nil then
+		local ok, result = pcall(function()
+			local model = FloatieModel.Build(Config.FloatieById[preview._id], preview._mut, 1)
+			FloatieModel.SetAnchored(model, true)
+			local label = model.PrimaryPart and model.PrimaryPart:FindFirstChild("Label")
+			if label then
+				label:Destroy()
+			end
+			model:RemoveTag("Floatie") -- so the bob/squish loop ignores previews
+			-- ("RainbowFloatie" stays, so rainbow previews still cycle colors)
+			return model
+		end)
+		if ok then
+			template = result
+		else
+			template = false
+			warnOnce("build " .. key, "could not build preview " .. key .. ": " .. tostring(result))
+		end
+		templates[key] = template
+	end
+	return template or nil
+end
+
+local function aimCamera(preview, angle)
+	local dir = VIEW_DIR
+	if angle ~= 0 then
+		dir = CFrame.Angles(0, angle, 0):VectorToWorldSpace(VIEW_DIR)
+	end
+	preview._camera.CFrame = CFrame.lookAt(preview._center + dir * preview._dist, preview._center)
+end
+
+-- fit the whole model in view (FieldOfView 40 = 20 degrees each side)
+local function frameCamera(preview, model)
+	local boxCf, size = model:GetBoundingBox()
+	local dist = (size.Magnitude / 2) / math.tan(math.rad(20)) * 1.1
+	-- FieldOfView is vertical: a tall, narrow frame needs the camera further back
+	local abs = preview.frame.AbsoluteSize
+	if abs.X > 0 and abs.X < abs.Y then
+		dist *= abs.Y / abs.X
+	end
+	preview._center = boxCf.Position
+	preview._dist = dist
+	aimCamera(preview, if preview._spin then os.clock() * SPIN_SPEED else 0)
+end
+
+local function updatePreview(preview)
+	local frame = preview.frame
+	if previews[frame] ~= preview then
+		return -- destroyed
+	end
+	if preview._key and isOnScreen(frame) then
+		if not preview._clone then
+			local template = getTemplate(preview)
+			if not template then
+				return
+			end
+			preview._clone = template:Clone()
+		end
+		if preview._clone.Parent ~= frame then
+			frameCamera(preview, preview._clone)
+			preview._clone.Parent = frame
+		end
+	elseif preview._clone and preview._clone.Parent then
+		preview._clone.Parent = nil -- off screen: keep the clone for when it comes back
+	end
+end
+
+-- one shared loop checks every preview 4 times a second
+local previewLoopRunning = false
+local function startPreviewLoop()
+	if previewLoopRunning then
+		return
+	end
+	previewLoopRunning = true
+	task.spawn(function()
+		while next(previews) ~= nil do
+			local list = {}
+			for _, preview in pairs(previews) do
+				table.insert(list, preview)
+			end
+			for _, preview in ipairs(list) do
+				local ok, err = pcall(updatePreview, preview)
+				if not ok then
+					warnOnce("preview", "preview update failed: " .. tostring(err))
+				end
+			end
+			task.wait(0.25)
+		end
+		previewLoopRunning = false
+	end)
+end
+
+-- slow camera orbit for previews made with { spin = true }
+local spinConn = nil
+local function startSpinLoop()
+	if spinConn then
+		return
+	end
+	spinConn = RunService.RenderStepped:Connect(function()
+		local angle = os.clock() * SPIN_SPEED
+		local any = false
+		for _, preview in pairs(previews) do
+			if preview._spin then
+				any = true
+				if preview._clone and preview._clone.Parent then
+					aimCamera(preview, angle)
+				end
+			end
+		end
+		if not any then
+			spinConn:Disconnect()
+			spinConn = nil
+		end
+	end)
+end
+
+local function forget(preview)
+	previews[preview.frame] = nil
+	if preview._clone then
+		preview._clone:Destroy()
+		preview._clone = nil
+	end
+end
+
+-- preview:setFloatie(floatieId?, mutId?) — nil clears the preview
+function Preview:setFloatie(floatieId, mutId)
+	local def = floatieId and Config.FloatieById[floatieId]
+	if floatieId ~= nil and not def then
+		warnOnce("id " .. tostring(floatieId), "viewport: unknown Floatie id " .. tostring(floatieId))
+	end
+	local mut = mutId or "Normal"
+	local key = if def then floatieId .. "|" .. mut else nil
+	if key == self._key then
+		return -- already showing it
+	end
+	if self._clone then
+		self._clone:Destroy()
+		self._clone = nil
+	end
+	self._key = key
+	self._id = if def then floatieId else nil
+	self._mut = if def then mut else nil
+	if key then
+		-- show it right away if it is already on screen (else the loop will)
+		local ok, err = pcall(updatePreview, self)
+		if not ok then
+			warnOnce("preview", "preview update failed: " .. tostring(err))
+		end
+	end
+end
+
+-- preview:destroy() — removes the preview and its ViewportFrame
+function Preview:destroy()
+	forget(self)
+	self._key = nil
+	self.frame:Destroy()
+end
+
+-- Kit.viewport(parent, props?, opts?) -> Preview { frame, setFloatie, destroy }
+-- opts = { spin = false }
+function Kit.viewport(parent, props, opts)
+	parent, props, opts = splitArgs(parent, props, opts, VIEWPORT_OPTS)
+	local base = {
+		BackgroundTransparency = 1, Ambient = Color3.fromRGB(200, 200, 200), LightColor = WHITE,
+		LightDirection = Vector3.new(-1, -1, -1),
+	}
+	for k, v in pairs(props) do
+		base[k] = v
+	end
+	local frame = Kit.make("ViewportFrame", base)
+	local camera = Kit.make("Camera", { Name = "PreviewCamera", FieldOfView = 40 }, frame)
+	frame.CurrentCamera = camera
+
+	local preview = setmetatable({
+		frame = frame, _camera = camera, _spin = opts.spin == true,
+		_key = nil, _id = nil, _mut = nil, _clone = nil, _center = Vector3.zero, _dist = 10,
+	}, Preview)
+	previews[frame] = preview
+	frame.Destroying:Connect(function()
+		forget(preview)
+	end)
+
+	if parent then
+		frame.Parent = parent
+	end
+	startPreviewLoop()
+	if preview._spin then
+		startSpinLoop()
+	end
+	return preview
+end
+
+return Kit
+]]></ProtectedString>
+						<string name="ScriptGuid">{1534800B-DD48-49DE-9DC1-55B8BE22EB81}</string>
+						<BinaryString name="AttributesSerialize"></BinaryString>
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+						<string name="Name">Kit</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+						<UniqueId name="UniqueId">25fc82e6d8cb96740acb48d800000959</UniqueId>
+					</Properties>
+				</Item>
 			</Item>
 		</Item>
 		<Item class="StarterCharacterScripts" referent="RBX1DD118469F3248F99E5CC9AEA4AC9FEE">
@@ -1815,6 +4435,7 @@ end)
 	  • add a new event          -> Config.Events
 	  • add a promo code         -> Config.Codes
 	  • hook up Robux products   -> Config.GamePasses / Config.DevProducts
+	  • recolor the HUD + panels -> Config.UI
 	After editing, bump Config.Version so players see the update number.
 ]]
 
@@ -1824,7 +4445,7 @@ local Config = {}
 -- General
 ---------------------------------------------------------------------
 Config.GameName = "Steal a Floatie"
-Config.Version = "0.1.2"           -- bump every update, shown in the HUD
+Config.Version = "0.2.0"           -- bump every update, shown in the HUD
 Config.DataStoreName = "FloatieData_v1" -- NEVER rename after launch (players lose saves)
 
 -- Your Roblox UserId goes here so you can use admin chat commands in live servers
@@ -1858,6 +4479,67 @@ Config.PopReward = 20               -- popping someone else's stolen Floatie pay
 
 Config.PumpInterval = 3.5           -- a new Floatie appears on the Pump Line every X sec
 Config.PumpTravelTime = 34          -- seconds to ride the whole line
+
+Config.HomeCooldown = 3             -- seconds between Home teleports (server rate limit; the HUD uses it too).
+                                    -- The server lets requests through 0.5 s early so network lag never eats a click.
+
+---------------------------------------------------------------------
+-- Game feel (client-side visuals only — safe to tweak any time)
+---------------------------------------------------------------------
+Config.Feel = {
+	BobHeight = 0.35,     -- studs a Floatie floats up and down
+	BobSpeed = 1.6,       -- bob cycles speed
+	SquishAmount = 0.06,  -- 0.06 = stretches 6% taller / squats 3% wider
+	SquishSpeed = 3.2,
+	AnimDistance = 140,   -- only animate Floaties this close to the camera (performance)
+}
+
+---------------------------------------------------------------------
+-- UI colors (client HUD + panels). Kit builds light-to-dark button
+-- gradients from these automatically.
+---------------------------------------------------------------------
+Config.UI = {
+	-- Text
+	Text          = Color3.fromRGB(255, 255, 255), -- chunky white text
+	TextDark      = Color3.fromRGB(55, 48, 85),    -- small text on light panels (no outline)
+	Outline       = Color3.fromRGB(28, 22, 45),    -- text outlines, button + panel borders
+	-- Surfaces
+	PanelTop      = Color3.fromRGB(250, 248, 255), -- panel body gradient (top)
+	PanelBottom   = Color3.fromRGB(205, 214, 245), -- panel body gradient (bottom)
+	Row           = Color3.fromRGB(255, 255, 255), -- list rows inside panels
+	Input         = Color3.fromRGB(255, 255, 255), -- text boxes
+	HudBg         = Color3.fromRGB(30, 28, 48),    -- dark HUD plates (drawn ~15% transparent)
+	-- Button / header colors
+	Green         = Color3.fromRGB(70, 205, 95),
+	Blue          = Color3.fromRGB(65, 150, 255),
+	Orange        = Color3.fromRGB(255, 160, 40),
+	Yellow        = Color3.fromRGB(255, 205, 50),
+	Pink          = Color3.fromRGB(255, 95, 160),
+	Purple        = Color3.fromRGB(150, 85, 245),
+	Red           = Color3.fromRGB(235, 55, 65),   -- the big X and badges
+	Grey          = Color3.fromRGB(135, 135, 155), -- disabled / owned
+	-- HUD values
+	Income        = Color3.fromRGB(120, 255, 140), -- "+12 Air/s"
+	Luck          = Color3.fromRGB(110, 235, 110),
+	Cash          = Color3.fromRGB(255, 210, 60),
+	Gold          = Color3.fromRGB(255, 210, 90),  -- shop section headers
+	Good          = Color3.fromRGB(120, 255, 140), -- code redeemed
+	Bad           = Color3.fromRGB(255, 120, 120), -- code error
+	-- Boxes under the top bar (same colors as v0.1.2)
+	EventBanner   = Color3.fromRGB(120, 60, 210),
+	EventDesc     = Color3.fromRGB(230, 220, 255),
+	CarryBox      = Color3.fromRGB(200, 60, 60),
+	TutorialBox   = Color3.fromRGB(255, 225, 90),
+	TutorialArrow = Color3.fromRGB(255, 230, 60),
+	-- Toasts by kind (same colors as v0.1.2)
+	Toast = {
+		info    = Color3.fromRGB(45, 45, 70),
+		success = Color3.fromRGB(40, 150, 90),
+		error   = Color3.fromRGB(190, 60, 70),
+		alert   = Color3.fromRGB(230, 70, 40),
+		event   = Color3.fromRGB(140, 70, 220),
+	},
+}
 
 ---------------------------------------------------------------------
 -- Rarities (weight = chance to appear on the Pump Line)
@@ -2327,6 +5009,7 @@ function FloatieModel.Build(def, mutId, scale)
 
 	local model = Instance.new("Model")
 	model.Name = def.name
+	CollectionService:AddTag(model, "Floatie") -- the client animates these (bob / squish)
 
 	local root = Instance.new("Part")
 	root.Name = "Root"
@@ -2618,6 +5301,7 @@ local FireDartRE = remote("FireDart")
 local KnockbackRE = remote("Knockback")
 local RebirthRE = remote("Rebirth")
 local RedeemRF = remote("RedeemCode", "RemoteFunction")
+local RequestHomeRE = remote("RequestHome") -- HUD Home button (no arguments)
 Remotes.Parent = ReplicatedStorage
 
 ---------------------------------------------------------------------
@@ -2633,7 +5317,7 @@ for _, base in ipairs(bases) do
 	base.lockReadyAt = 0
 end
 
-local profiles = {}     -- [Player] = { data, canSave, base, passes, incomePerSec, dartReady, loaded }
+local profiles = {}     -- [Player] = { data, canSave, base, passes, incomePerSec, dartReady, homeReady, loaded }
 local carries = {}      -- [thief Player] = carry info
 local carriedKeys = {}  -- ["ownerUserId:uid"] = true while that Floatie is on someone's head
 local lineItems = {}    -- Floaties riding the Pump Line
@@ -2697,6 +5381,24 @@ end
 
 local function growthMultiplier(player)
 	return if hasPass(player, "FastInflate") then 1.5 else 1
+end
+
+-- Luck shown on the HUD. Stage 2 (Lucky Breeze) makes this real.
+local function luckMultiplier(_player)
+	return 1
+end
+
+-- numbers the HUD reads: Cash = the real income multiplier
+-- (rebirths x DoubleAir x VIP x event incomeMult, see incomeMultiplier)
+local function publishMultipliers(player)
+	local prof = profiles[player]
+	if not prof then
+		return
+	end
+	local cash = incomeMultiplier(player)
+	player:SetAttribute("CashMultiplier", cash)
+	player:SetAttribute("LuckMultiplier", luckMultiplier(player))
+	player:SetAttribute("BoostPercent", math.floor((cash - 1) * 100 + 0.5))
 end
 
 -- income per second of one Floatie BEFORE the player's multipliers
@@ -3302,6 +6004,7 @@ local function onBuy(player, item)
 	end
 	item.bought = true
 	prof.data.air -= price
+	player:SetAttribute("Air", prof.data.air) -- now, so the HUD drops at once (not at the next 1 s tick)
 	local pos = item.model:GetPivot().Position
 	item.model:Destroy()
 	local idx = table.find(lineItems, item)
@@ -3346,7 +6049,10 @@ end
 ---------------------------------------------------------------------
 -- Events
 ---------------------------------------------------------------------
+-- nextEventAt is mirrored to ReplicatedStorage "NextEventAt" (server time)
+-- every time it is assigned, so the HUD event timer can count down to it.
 local nextEventAt = now() + Config.EventInterval
+ReplicatedStorage:SetAttribute("NextEventAt", nextEventAt)
 
 local function startEvent(name, by)
 	local ev = Config.Events[name]
@@ -3355,9 +6061,16 @@ local function startEvent(name, by)
 	end
 	ReplicatedStorage:SetAttribute("Event", name)
 	ReplicatedStorage:SetAttribute("EventEndsAt", now() + ev.duration)
+	-- event income (Golden Hour) changes Cash / boost % right away
+	for p, prof in pairs(profiles) do
+		if prof.loaded then
+			publishMultipliers(p)
+		end
+	end
 	local thanks = if by then " (thanks " .. by .. "!)" else ""
 	notifyAll(ev.title .. " — " .. ev.desc .. thanks, "event")
 	nextEventAt = now() + ev.duration + Config.EventInterval
+	ReplicatedStorage:SetAttribute("NextEventAt", nextEventAt)
 	return true
 end
 
@@ -3402,6 +6115,7 @@ MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, passI
 		if info.id == passId then
 			prof.passes[name] = true
 			player:SetAttribute("Pass_" .. name, true)
+			publishMultipliers(player) -- DoubleAir / VIP change Cash right away
 			notify(player, "Thanks for buying " .. info.title .. "! 💖", "success")
 			if name == "ExtraPedestals" then
 				refreshBase(player)
@@ -3482,6 +6196,7 @@ RebirthRE.OnServerEvent:Connect(function(player)
 	end
 	prof.data.rebirths += 1
 	prof.data.air = Config.StartingAir
+	player:SetAttribute("Air", prof.data.air) -- the HUD drops at once
 	prof.data.floaties = {}
 	if best then
 		best.slot = 1
@@ -3489,6 +6204,7 @@ RebirthRE.OnServerEvent:Connect(function(player)
 	end
 	refreshBase(player)
 	player:SetAttribute("Rebirths", prof.data.rebirths)
+	publishMultipliers(player)
 	notifyAll("🌟 " .. player.DisplayName .. " reached Rebirth " .. prof.data.rebirths .. "!", "event")
 end)
 
@@ -3517,6 +6233,42 @@ RedeemRF.OnServerInvoke = function(player, code)
 	end
 	return true, "Code redeemed! 🎉"
 end
+
+---------------------------------------------------------------------
+-- Home button: teleport to your base spawn. Later stages add more
+-- reasons to refuse inside canGoHome.
+---------------------------------------------------------------------
+local function canGoHome(player)
+	if carries[player] then
+		return false, "You can't go Home while carrying a Floatie!"
+	end
+	return true, nil
+end
+
+RequestHomeRE.OnServerEvent:Connect(function(player)
+	local prof = profiles[player]
+	if not prof or not prof.loaded then
+		return
+	end
+	local clock = os.clock()
+	if clock < prof.homeReady then
+		return -- rate limit (silent)
+	end
+	-- 0.5 s of slack: the HUD waits the full cooldown between clicks, but lag
+	-- can bring two requests here a little closer together than that
+	prof.homeReady = clock + Config.HomeCooldown - 0.5
+	local ok, reason = canGoHome(player)
+	if not ok then
+		notify(player, reason, "error")
+		return
+	end
+	local char = player.Character
+	local hum = char and char:FindFirstChildOfClass("Humanoid")
+	if not hum or hum.Health <= 0 or not char:FindFirstChild("HumanoidRootPart") then
+		return
+	end
+	char:PivotTo(bases[prof.base].spawn.CFrame * CFrame.new(0, 4, 0)) -- same as the join teleport (onPlayerAdded)
+end)
 
 ---------------------------------------------------------------------
 -- Admin commands
@@ -3634,7 +6386,7 @@ local function onPlayerAdded(player)
 		player:Kick("This server is full, please join another one!")
 		return
 	end
-	local prof = { data = data, canSave = canSave, base = baseIndex, passes = {}, incomePerSec = 0, dartReady = 0, loaded = false }
+	local prof = { data = data, canSave = canSave, base = baseIndex, passes = {}, incomePerSec = 0, dartReady = 0, homeReady = 0, loaded = false }
 	profiles[player] = prof
 	loadPasses(player)
 	normalizeSlots(player)
@@ -3681,7 +6433,8 @@ local function onPlayerAdded(player)
 	player:SetAttribute("Air", data.air)
 	player:SetAttribute("Rebirths", data.rebirths)
 	player:SetAttribute("IncomePerSec", 0)
-	-- brand-new players get the tutorial (see ClientMain)
+	publishMultipliers(player) -- CashMultiplier / LuckMultiplier / BoostPercent for the HUD
+	-- brand-new players get the tutorial (see ClientMain/Tutorial)
 	player:SetAttribute("ShowTutorial", #data.floaties == 0 and data.rebirths == 0 and data.stats.steals == 0)
 	player.RespawnLocation = bases[baseIndex].spawn
 	refreshBase(player)
@@ -3802,9 +6555,7 @@ task.spawn(function()
 		task.wait(0.2)
 		local t = now()
 		for thief, c in pairs(carries) do
-			if not thief.Parent then
-				endCarry(thief, "returned")
-			elseif t >= c.endsAt then
+			if not thief.Parent or t >= c.endsAt then
 				endCarry(thief, "returned")
 			else
 				local prof = profiles[thief]
@@ -3868,6 +6619,7 @@ task.spawn(function()
 				player:SetAttribute("Air", prof.data.air)
 				player:SetAttribute("IncomePerSec", income)
 				player:SetAttribute("Rebirths", prof.data.rebirths)
+				publishMultipliers(player) -- also catches an event ending
 				prof.stats.air.Value = Config.Format(prof.data.air)
 				prof.stats.rebirths.Value = prof.data.rebirths
 				prof.stats.steals.Value = prof.data.stats.steals
@@ -4457,7 +7209,7 @@ return MapBuilder
 				<G>0.5</G>
 				<B>0.5</B>
 			</Color3>
-			<float name="Brightness">1</float>
+			<float name="Brightness">1.98124921</float>
 			<Color3 name="ColorShift_Bottom">
 				<R>0</R>
 				<G>0</G>
@@ -4490,9 +7242,12 @@ return MapBuilder
 			<bool name="Outlines">true</bool>
 			<bool name="PrioritizeLightingQuality">false</bool>
 			<float name="ShadowSoftness">0.5</float>
-			<token name="Technology">2</token>
+			<token name="Technology">1</token>
 			<string name="TimeOfDay">14:00:00</string>
-			<BinaryString name="AttributesSerialize">AQAAACYAAABSQlhfTGlnaHRpbmdUZWNobm9sb2d5VW5pZmllZE1pZ3JhdGlvbgMB</BinaryString>
+			<BinaryString name="AttributesSerialize"><![CDATA[BQAAABQAAABSQlhfQmFja3VwQnJpZ2h0bmVzcwUAAIA/HgAAAFJCWF9CYWNrdXBFeHBvc3Vy
+ZUNvbXBlbnNhdGlvbgUAAAAAIQAAAFJCWF9MaWdodGluZ0NvbXBhdGliaWxpdHlNaWdyYXRl
+ZAMBJgAAAFJCWF9MaWdodGluZ1RlY2hub2xvZ3lVbmlmaWVkTWlncmF0aW9uAwEgAAAAUkJY
+X09yaWdpbmFsVGVjaG5vbG9neU9uRmlsZUxvYWQEAgAAAA==]]></BinaryString>
 			<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
 			<bool name="DefinesCapabilities">false</bool>
 			<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
@@ -4501,6 +7256,36 @@ return MapBuilder
 			<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 			<UniqueId name="UniqueId">118bb205a2b353690aca71c200000403</UniqueId>
 		</Properties>
+		<Item class="ColorGradingEffect" referent="RBXCDFF13E7C7EE45DAB06E38698D91A255">
+			<Properties>
+				<token name="TonemapperPreset">1</token>
+				<bool name="Enabled">true</bool>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+				<bool name="DefinesCapabilities">false</bool>
+				<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+				<string name="Name">ColorGrading</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				<UniqueId name="UniqueId">25fc82e6d8cb96740acb48d8000003e6</UniqueId>
+			</Properties>
+		</Item>
+		<Item class="BloomEffect" referent="RBXD5EB64A6AE7B4A9DB5ED4A955BA3BA95">
+			<Properties>
+				<float name="Intensity">0</float>
+				<float name="Size">24</float>
+				<float name="Threshold">0.949999988</float>
+				<bool name="Enabled">true</bool>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+				<bool name="DefinesCapabilities">false</bool>
+				<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+				<string name="Name">Bloom</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				<UniqueId name="UniqueId">25fc82e6d8cb96740acb48d8000003e7</UniqueId>
+			</Properties>
+		</Item>
 	</Item>
 	<Item class="VideoService" referent="RBX01050AD9165448458B953A5BFA18E3FB">
 		<Properties>
