@@ -78,6 +78,20 @@ Robux.OfferLadder = {
 }
 
 ---------------------------------------------------------------------
+-- Offer bubbles on the right side of the HUD: two at a time. The Starter
+-- Pack keeps the first spot until it is bought; the other spot cycles
+-- through the rest every OfferRotate seconds (passes you own are skipped).
+--   kind = "starter" | "pass" (Config.GamePasses key) | "product" (Config.DevProducts key)
+---------------------------------------------------------------------
+Robux.OfferBubbles = {
+	{ kind = "starter", label = "Starter",  color = Color3.fromRGB(255, 95, 160) },
+	{ kind = "pass",    key = "QuadLuck",   label = "4x Luck", color = Color3.fromRGB(80, 210, 90) },
+	{ kind = "pass",    key = "DoubleCash", label = "2x Cash", color = Color3.fromRGB(255, 195, 50) },
+	{ kind = "product", key = "JackpotRoll", label = "Jackpot", color = Color3.fromRGB(150, 85, 245) },
+}
+Robux.OfferRotate = 6
+
+---------------------------------------------------------------------
 -- Friend Boost (free): +10% Air for each friend in your server
 ---------------------------------------------------------------------
 Robux.FriendBoost = { each = 0.10, max = 0.40 }

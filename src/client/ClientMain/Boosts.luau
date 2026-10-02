@@ -4,20 +4,18 @@
 	  • FriendBoost  "👥 +10%" next to the 🚀 badge, with a + button that opens
 	                 Roblox's invite prompt (+10% Air per friend in the
 	                 server, up to +40%; Config.FriendBoost)
-	  • Potions      one bubble per running potion with its time left. Right
-	                 side, under Luck / Cash; above them on touch screens,
-	                 where the event timer moves up out of the jump button's way.
-	                 Tap a bubble to see what it does.
+	  • Potions      one bubble per running potion with its time left, in the
+	                 HUD's RightStack under Luck / Cash (the row is hidden while
+	                 no potion runs). Tap a bubble to see what it does.
 
 	API:
-	  Boosts.mount(canvas)
+	  Boosts.mount(canvas, rightStack)
 	  Boosts.update()   -- init's 0.2 s loop (the potion timers)
 ]]
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SocialService = game:GetService("SocialService")
-local UserInputService = game:GetService("UserInputService")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local Kit = require(script.Parent.Kit)
@@ -77,27 +75,15 @@ end
 ---------------------------------------------------------------------
 -- Potion bubbles
 ---------------------------------------------------------------------
-local function placeRow()
-	if UserInputService.TouchEnabled then
-		-- above Luck / Cash (the RightStack is 68 tall around y = 0.5 - 44)
-		potionRow.AnchorPoint = Vector2.new(1, 1)
-		potionRow.Position = UDim2.new(1, -8, 0.5, -84)
-	else
-		-- under Luck / Cash
-		potionRow.AnchorPoint = Vector2.new(1, 0)
-		potionRow.Position = UDim2.new(1, -8, 0.5, -4)
-	end
-end
-
-local function mountPotions(canvas)
+local function mountPotions(rightStack)
 	potionRow = Kit.make("Frame", {
 		Name = "Potions", Size = UDim2.fromOffset(150, CELL.Y), BackgroundTransparency = 1,
-	}, canvas)
+		LayoutOrder = 3, Visible = false,
+	}, rightStack)
 	Kit.make("UIListLayout", {
 		FillDirection = Enum.FillDirection.Horizontal, HorizontalAlignment = Enum.HorizontalAlignment.Right,
 		Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder,
 	}, potionRow)
-	placeRow()
 
 	for i, kind in ipairs(Config.PotionOrder) do
 		local info = Config.Potions[kind]
@@ -130,14 +116,13 @@ local function mountPotions(canvas)
 	end
 end
 
-function Boosts.mount(canvas)
+function Boosts.mount(canvas, rightStack)
 	if mounted then
 		return
 	end
 	mounted = true
 	mountFriendBoost(canvas)
-	mountPotions(canvas)
-	UserInputService:GetPropertyChangedSignal("TouchEnabled"):Connect(placeRow)
+	mountPotions(rightStack or canvas)
 	Boosts.update()
 end
 
@@ -146,10 +131,12 @@ function Boosts.update()
 		return
 	end
 	local now = workspace:GetServerTimeNow()
+	local any = false
 	for kind, b in pairs(bubbles) do
 		local endsAt = tonumber(player:GetAttribute("PotionEnds_" .. kind)) or 0
 		local left = endsAt - now
 		local show = left > 0
+		any = any or show
 		if b.cell.Visible ~= show then
 			b.cell.Visible = show
 		end
@@ -157,6 +144,9 @@ function Boosts.update()
 			b.time.Text = Config.FormatTime(left)
 			b.time.TextColor3 = if left < 60 then C.Bad else C.Text
 		end
+	end
+	if potionRow.Visible ~= any then
+		potionRow.Visible = any -- an empty row takes no room in the RightStack
 	end
 end
 

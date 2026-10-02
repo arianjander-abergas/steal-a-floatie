@@ -11,6 +11,8 @@
 	  ;level 50                    set every Floatie you own to this level
 	  ;rebirths 3                  set your rebirth count
 	  ;pump 6                      own every pump up to this tier and equip it
+	  ;buy QuadLuck                act as if a pass / product was bought (any GamePasses or
+	                               DevProducts name, StarterPack, Offer2..Offer5, Upgrade_luck)
 	  ;wipe                        (Studio only) start over as a brand-new player
 ]]
 
@@ -25,6 +27,7 @@ local Economy = require(script.Parent.Economy)
 local Bases = require(script.Parent.Bases)
 local Floaties = require(script.Parent.Floaties)
 local Events = require(script.Parent.Events)
+local Shop = require(script.Parent.Shop)
 local Sync = require(script.Parent.Sync)
 
 local Admin = {}
@@ -120,6 +123,13 @@ COMMANDS.pump = function(player, prof, args)
 	prof.data.pumps.equipped = tier
 	Sync.field(player, "pumps")
 	Core.StatsChanged:Fire(player)
+end
+
+COMMANDS.buy = function(player, prof, args)
+	local name = args[2] or ""
+	if not Shop.simulate(player, name) then
+		Core.notify(player, "Try ;buy QuadLuck / JackpotRoll / StarterPack / Offer2 / Upgrade_luck", "error")
+	end
 end
 
 COMMANDS.wipe = function(player, prof)

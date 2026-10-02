@@ -6,9 +6,11 @@
 	  • LeftMenu    wide rainbow Shop button + a grid of square tiles
 	  • AirPanel    the big rolling Air number (bottom-left) + "+X Air/s"
 	  • BoostBadge  "🚀 +0%" pill above the Air number
-	  • RightStack  "Luck: 1.00x" / "Cash: 1.00x"
-	  • EventTimer  next random event countdown, or the live event (bottom-right)
-	  • Version     game name + version under the timer
+	  • RightStack  "Luck: 1.00x" / "Cash: 1.00x"; other modules add rows under
+	                them (potion bubbles, offer bubbles), so it grows downward
+	  • EventTimer  next random event countdown, or the live event: bottom-right,
+	                or top-right on touch screens (the jump button owns the corner)
+	  • Version     game name + version (bottom-right)
 
 	Everything is placed in virtual px on the Kit canvas (at least 800x400,
 	see Kit.createScreen), so nothing overlaps on phones. Only buttons are
@@ -16,7 +18,8 @@
 	the mobile thumbstick.
 
 	API:
-	  HUD.mount(canvas, actions) -> { topStack = Frame }   -- actions.togglePanel(name) opens panels
+	  HUD.mount(canvas, actions) -> { topStack = Frame, rightStack = Frame }
+	      actions.togglePanel(name) opens panels
 	  HUD.update()               -- init calls this every 0.2 s (event timer text)
 	  HUD.addTile(def) -> TextButton
 	      def = { name = "Rebirth", icon = "🌟", color = Color3, order = 60, onClick = function() end }
@@ -86,23 +89,6 @@ local function layoutLeftMenu()
 		h = SHOP_HEIGHT + TILE_GAP + rows * TILE_SIZE + (rows - 1) * TILE_GAP
 	end
 	leftMenu.Size = UDim2.fromOffset(MENU_WIDTH, h)
-end
-
--- how far to lift the event timer (virtual px) so the touch jump button
--- never covers it. Roblox's TouchJump puts the button's TOP edge 90 real px
--- above the bottom on small screens (min side <= 500: 70 px button at
--- 1,-90) and 210 real px above it on big ones (120 px button at 1,-210);
--- we clear that by ~10 px. The cap keeps the timer below the RightStack
--- (8 px gap): 132 on a 400-high canvas, more on taller ones (tablets).
-local function timerLift()
-	local lift = 0
-	if UserInputService.TouchEnabled then
-		local screen = Kit.getScreenSize()
-		local liftPx = if math.min(screen.X, screen.Y) <= 500 then 100 else 220
-		local cap = math.floor(Kit.getCanvasSize().Y / 2) - 68
-		lift = math.max(0, math.min(math.ceil(liftPx / Kit.getScale()), cap))
-	end
-	return lift
 end
 
 -- dark plate normally, purple gradient while an event is running
@@ -460,11 +446,13 @@ function HUD.mount(canvas, actions)
 	refreshBoost()
 
 	-----------------------------------------------------------------
-	-- RightStack: Luck / Cash multipliers (2 x 31 + 6 = 68 tall)
+	-- RightStack: Luck / Cash multipliers (2 x 31 + 6 = 68 tall), then
+	-- whatever Boosts / Offers add (LayoutOrder 3+). Top-anchored, so
+	-- added rows grow it downward.
 	-----------------------------------------------------------------
 	local rightStack = Kit.make("Frame", {
-		Name = "RightStack", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.5, -44),
-		Size = UDim2.fromOffset(150, 68), BackgroundTransparency = 1,
+		Name = "RightStack", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -8, 0.5, -78),
+		Size = UDim2.fromOffset(150, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1,
 	}, canvas)
 	Kit.make("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }, rightStack)
 
@@ -505,15 +493,22 @@ function HUD.mount(canvas, actions)
 		Name = "Time", Position = UDim2.fromOffset(8, 32), Size = UDim2.new(1, -16, 0, 22), Text = "Soon!",
 	}, { outline = 3, maxTextSize = 22 })
 
-	-- on touch screens, lift the timer above the jump button
-	local function placeTimer()
-		timer.Position = UDim2.new(1, -8, 1, -(14 + timerLift()))
+	-- touch screens: the jump button owns the bottom-right corner, so the
+	-- timer moves to the top-right and the RightStack starts under it
+	-- (Luck, Cash, potions and offers then end well above the jump button)
+	local function placeRight()
+		if UserInputService.TouchEnabled then
+			timer.AnchorPoint = Vector2.new(1, 0)
+			timer.Position = UDim2.new(1, -8, 0, 6)
+			rightStack.Position = UDim2.new(1, -8, 0, 68)
+		else
+			timer.AnchorPoint = Vector2.new(1, 1)
+			timer.Position = UDim2.new(1, -8, 1, -14)
+			rightStack.Position = UDim2.new(1, -8, 0.5, -78)
+		end
 	end
-	placeTimer()
-	Kit.ScaleChanged:Connect(placeTimer)
-	-- also on any screen resize: the jump button size rule can change even
-	-- when the scale doesn't (e.g. the first layout at scale 1)
-	canvas:GetPropertyChangedSignal("AbsoluteSize"):Connect(placeTimer)
+	placeRight()
+	UserInputService:GetPropertyChangedSignal("TouchEnabled"):Connect(placeRight)
 
 	-----------------------------------------------------------------
 	-- Version (under the timer)
@@ -526,7 +521,7 @@ function HUD.mount(canvas, actions)
 
 	HUD.update() -- fill the timer now instead of waiting for init's first loop
 
-	mounted = { topStack = topStack }
+	mounted = { topStack = topStack, rightStack = rightStack }
 	return mounted
 end
 

@@ -36,6 +36,7 @@ local Effects = require(script:WaitForChild("Effects"))
 local Conveyor = require(script:WaitForChild("Conveyor"))
 local Boosts = require(script:WaitForChild("Boosts"))
 local Badges = require(script:WaitForChild("Badges"))
+local Offers = require(script:WaitForChild("Offers"))
 
 -- run a step; a broken module warns once instead of stopping the rest
 local warned = {}
@@ -137,12 +138,14 @@ safe("Reroll.mount", function()
 end)
 safe("FloatieCard.mount", FloatieCard.mount, panelCanvas, actions)
 
-local topStack = hudCanvas -- fallback if the HUD fails to mount
+local topStack, rightStack = hudCanvas, hudCanvas -- fallbacks if the HUD fails to mount
 safe("HUD.mount", function()
-	topStack = HUD.mount(hudCanvas, { togglePanel = togglePanel }).topStack
+	local hud = HUD.mount(hudCanvas, { togglePanel = togglePanel })
+	topStack, rightStack = hud.topStack, hud.rightStack
 end)
 safe("Notify.follow", Notify.follow, topStack)
-safe("Boosts.mount", Boosts.mount, hudCanvas)
+safe("Boosts.mount", Boosts.mount, hudCanvas, rightStack)
+safe("Offers.mount", Offers.mount, rightStack, panelCanvas)
 safe("RollUI.mount", RollUI.mount, hudCanvas, revealCanvas, { openPanel = openPanel })
 
 ---------------------------------------------------------------------
@@ -182,6 +185,7 @@ local STEPS = {
 	{ "Boosts.update", Boosts.update },
 	{ "RewardsPanel.update", RewardsPanel.update },
 	{ "Badges.update", Badges.update },
+	{ "Offers.update", Offers.update },
 }
 task.spawn(function()
 	while true do

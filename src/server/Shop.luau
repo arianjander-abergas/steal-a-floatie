@@ -162,6 +162,38 @@ MarketplaceService.ProcessReceipt = function(receipt)
 end
 
 ---------------------------------------------------------------------
+-- Testing (Admin ;buy): grant a pass or product as if it was bought.
+-- name = a GamePasses / DevProducts key, "StarterPack", "Offer2".."Offer5"
+-- or "Upgrade_<id>". Returns ok.
+---------------------------------------------------------------------
+function Shop.simulate(player, name)
+	local prof = Core.getProfile(player)
+	if not prof or type(name) ~= "string" then
+		return false
+	end
+	if Config.GamePasses[name] then
+		prof.passes[name] = true
+		player:SetAttribute("Pass_" .. name, true)
+		Shop.PassBought:Fire(player, name)
+		Core.StatsChanged:Fire(player)
+		return true
+	end
+	local found
+	local step = tonumber(string.match(name, "^Offer(%d+)$"))
+	local upgrade = string.match(name, "^Upgrade_(%w+)$")
+	if Config.DevProducts[name] then
+		found = { kind = "product", key = name }
+	elseif name == "StarterPack" then
+		found = { kind = "starter" }
+	elseif step and Config.OfferLadder[step] then
+		found = { kind = "offer", key = step }
+	elseif upgrade and Config.UpgradeProducts[upgrade] then
+		found = { kind = "upgrade", key = upgrade }
+	end
+	return found ~= nil and grantProduct(player, found) == true
+end
+
+---------------------------------------------------------------------
 -- The free first step of the offer ladder
 ---------------------------------------------------------------------
 Core.remote("ClaimOffer", "RemoteFunction").OnServerInvoke = function(player, step)

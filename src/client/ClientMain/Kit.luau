@@ -780,6 +780,16 @@ function Kit.closeAllPanels()
 	end
 end
 
+-- Kit.anyPanelOpen() -> boolean (so popups can wait instead of closing what you're using)
+function Kit.anyPanelOpen()
+	for panel in pairs(panels) do
+		if panel._open then
+			return true
+		end
+	end
+	return false
+end
+
 ---------------------------------------------------------------------
 -- Badge: the red "!" / number circle on a button
 ---------------------------------------------------------------------
