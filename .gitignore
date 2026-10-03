@@ -2,3 +2,4 @@
 *.rbxlx.lock
 *.zip
 sourcemap.json
+__pycache__/

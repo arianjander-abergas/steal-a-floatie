@@ -59,6 +59,7 @@ Rules of thumb when changing them:
 - Rebirth takes ALL your Air (at least the cost); Floaties, Pumps and upgrades stay. Costs: 1.5B, 100B, 4T, 50T, 310T, 2.1Qa, 7.7Qa, 23Qa, then x3 each. Each one gives +50% cash, +10% luck and +2 slots (up to +6).
 - Mythic and better pulls (and Legendary+ from a Jackpot Roll) are announced in the server chat, never on screen. The HIDE button turns off every roll popup.
 - If you change Floatie incomes or odds, re-check these times: the whole curve depends on them.
+- Re-check with the simulator (Python 3, no extra packages): `python tools/econ_sim.py 200 8` plays 8 free players for 200 play-hours and prints when they reach each milestone. Its defaults copy the game's numbers, so update them with ConfigParts. `tools/econ_fit.py` re-fits Pump prices and rebirth costs to target times.
 
 ## Where things are
 | Folder | In Studio | Job |
@@ -71,7 +72,7 @@ Rules of thumb when changing them:
 | `src/client/ClientMain/` | `StarterPlayer/StarterPlayerScripts/ClientMain` | Kit (UI toolkit), HUD and every panel (Backpack, Index, Pump Shop, Upgrades, Rebirth, Rewards, Shop, Trade, ...), roll and conveyor effects, tutorial |
 
 `CarryBox`, `Darts` and `Knockback` in `ClientMain` are left over from Steal a Floatie and are no longer used.
-`Art/` holds the game icon and thumbnail for the Roblox page.
+`Art/` holds the game icon and thumbnail for the Roblox page. `tools/` holds the economy simulator (not part of the game).
 
 ## Editing with Rojo
 1. In PowerShell: `cd "C:\Users\AIAN\Desktop\Roblox Games"` then `rojo serve`.
