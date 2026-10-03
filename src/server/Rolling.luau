@@ -13,8 +13,9 @@
 	  SetSetting (event)           ("autoRoll" | "hide", bool) or ("autoSell", rarity order 0..10)
 	  UseJackpot (fn) -> ok, msg   spend a Jackpot Roll: your next roll gets x999 Luck
 	  RollResult (to you)          { id, mut, dest, soldFor, uid, slot, inflateTime, jackpot, rollNumber, new }
-	  PumpPuff (to everyone)       (baseIndex, inflateTime) a balloon inflates at that base's pump
-	  ConveyorRide (to everyone)   { base, id, mut, slot, dest, soldFor, ride, walk } after the pop
+	  PumpPuff (to players nearby) (baseIndex, inflateTime) a balloon inflates at that base's pump
+	  ConveyorRide (to nearby)     { base, id, mut, slot, dest, soldFor, ride, walk } after the pop
+	  ChatMessage (to everyone)    Mythic+ pulls are announced in the chat (Core.chatAll)
 	Player attributes: AutoRoll, Hide, AutoSell, JackpotReady
 ]]
 
@@ -100,7 +101,7 @@ function Rolling.pickFloatie(player, luckMult)
 	return if #commons > 0 then weightedPick(commons) else Config.Floaties[1]
 end
 
--- rarest mutation first; Conveyor Luck, potions and events multiply the chances
+-- rarest mutation first; Mutation potions and Helium Rain multiply the chances
 function Rolling.pickMutation(player)
 	local mult = Economy.mutationMult(player)
 	local _, evName = Economy.activeEvent()
@@ -213,9 +214,10 @@ function Rolling.roll(player)
 		elseif f then
 			Floaties.arrive(player, f.uid)
 		end
+		-- very rare pulls go in the server chat (not on everyone's screen)
 		local rarity = Config.Rarities[def.rarity]
 		if rarity.order >= R.AnnounceOrder or (jackpot and rarity.order >= 5) then
-			Core.notifyAll(("🌟 %s pulled a %s %s (%s)!"):format(player.DisplayName, string.upper(def.rarity), rollLabel(def, mut), Config.FormatOdds(def.odds)), "event")
+			Core.chatAll(("🌟 %s pulled a %s %s (%s)!"):format(player.DisplayName, string.upper(def.rarity), rollLabel(def, mut), Config.FormatOdds(def.odds)), def.rarity)
 		end
 	end)
 	Core.StatsChanged:Fire(player) -- TotalRolls on the HUD (and the quick starter rolls end)

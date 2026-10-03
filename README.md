@@ -32,27 +32,33 @@ trade with friends.
 - Create the game passes and developer products on create.roblox.com and paste their IDs into `src/shared/ConfigParts/Robux.luau` (every `id = 0` is a placeholder; until then purchases only work through `;buy`).
 - Put your Roblox UserId in `Config.AdminUserIds`.
 
-## Economy (tuned in v1.0.0)
-Numbers live in `src/shared/ConfigParts/Rolling.luau` (Pumps) and `Progression.luau` (levels, upgrades, rebirth).
-They were tuned with a simulation of a free player on Auto Roll who spends sensibly. Expected pace:
+## Economy (re-tuned in v1.1.0)
+Numbers live in `src/shared/ConfigParts/Floaties.luau` (odds), `Rolling.luau` (Pumps) and `Progression.luau` (levels, upgrades, rebirth).
+They were tuned with a simulation of a free player on Auto Roll who claims Daily and Playtime rewards, drinks potions,
+uses Jackpot Rolls, Grade Tokens and Trait Gems, and saves for the next Pump. Expected pace (median play time; "days" = days of PLAY time):
 
 | Milestone | Time |
 |---|---|
-| Pump 3 | ~9 min |
-| Pump 4 | ~35 min |
-| First rebirth | ~1 h |
-| Pump 5 | ~2.5 h |
-| First Divine | ~4 h |
-| Pump 6 | ~8 h |
-| First Celestial | ~14 h |
-| Pump 7 | ~32 h |
-| First Cosmic | ~3–4 days |
+| First Rare / Epic | ~1 min / ~6 min |
+| Pump 3 / Pump 4 | ~25 min / ~1.5 h |
+| First Legendary | ~1 h (often the 60-minute Jackpot Roll) |
+| First rebirth | ~3 h |
+| Pump 5 / first Mythic | ~5.5 h / ~7 h |
+| Pump 6 / first Divine | ~14 h / ~20 h |
+| Pump 7 / Pump 8 | ~36 h / ~57 h |
+| First Celestial | ~5 days |
+| First Cosmic | ~10 days |
+| Pump 12 (the last) | ~28 days |
+| First Secret | ~35 days, and some players need much longer (near impossible, but possible) |
 
 Rules of thumb when changing them:
-- Pump luck grows slowly (x1 to x200) and prices grow ~40–100x per tier, so each Pump is a real goal.
+- Odds climb about x1.65 per Floatie (x12 per rarity), from 1 in 2 to 1 in 100B, like Anime Dice's "1 in 24B" units.
+- Pump luck grows slowly (x1 to x200); prices were fitted so each Pump is a real goal.
+- Luck upgrade: +5% per level, max 40 (x3). There is no Conveyor Luck upgrade any more: mutations only come from their base chances, Mutation potions and Helium Rain.
 - A Level Up costs `Floatie income x 100 x 1.08^(level-1)`, so leveling pays back in about the same time for every Floatie.
-- Rebirth costs at least 250M (x40 each time) and takes ALL your Air; Floaties, Pumps and upgrades stay. Each one gives +50% cash, +10% luck and +2 slots (up to +6).
-- If you change Floatie incomes, re-check these times: the whole curve scales with them.
+- Rebirth takes ALL your Air (at least the cost); Floaties, Pumps and upgrades stay. Costs: 1.5B, 100B, 4T, 50T, 310T, 2.1Qa, 7.7Qa, 23Qa, then x3 each. Each one gives +50% cash, +10% luck and +2 slots (up to +6).
+- Mythic and better pulls (and Legendary+ from a Jackpot Roll) are announced in the server chat, never on screen. The HIDE button turns off every roll popup.
+- If you change Floatie incomes or odds, re-check these times: the whole curve depends on them.
 
 ## Where things are
 | Folder | In Studio | Job |

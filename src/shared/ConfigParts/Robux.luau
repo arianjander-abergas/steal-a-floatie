@@ -47,7 +47,7 @@ Robux.BoostOrder = { "JackpotRoll", "LuckPotions", "CashPotions", "MutationPotio
 
 -- One level of an upgrade for Robux (Config.Upgrades has the button prices)
 Robux.UpgradeProducts = {
-	slots = 0, luck = 0, cash = 0, time = 0, walk = 0, conveyor = 0,
+	slots = 0, luck = 0, cash = 0, time = 0, walk = 0,
 }
 
 ---------------------------------------------------------------------

@@ -85,21 +85,23 @@ Progression.Slots = {
 -- robux = price of ONE level (a developer product, see Config.UpgradeProducts).
 ---------------------------------------------------------------------
 Progression.Upgrades = {
-	{ id = "slots",    name = "More Slots",    icon = "🧩", desc = "+1 slot for a Floatie",      per = 1,    max = 20, costBase = 2500, costGrowth = 2.5, robux = 39 },
-	{ id = "luck",     name = "Luck",          icon = "🍀", desc = "+10% luck on every roll",     per = 0.10, max = 50, costBase = 2500, costGrowth = 2.0, robux = 12 },
-	{ id = "cash",     name = "Cash",          icon = "💰", desc = "+10% Air from every Floatie", per = 0.10, max = 50, costBase = 2000, costGrowth = 2.0, robux = 14 },
-	{ id = "time",     name = "Time",          icon = "⏱️", desc = "-4% inflate time",            per = 0.04, max = 15, costBase = 5000, costGrowth = 2.5, robux = 10 },
-	{ id = "walk",     name = "Walk Speed",    icon = "👟", desc = "+1 walk speed",               per = 1,    max = 16, costBase = 300,  costGrowth = 1.8, robux = 9 },
-	{ id = "conveyor", name = "Conveyor Luck", icon = "🌈", desc = "+10% mutation chance",        per = 0.10, max = 30, costBase = 5000, costGrowth = 2.0, robux = 12 },
+	{ id = "slots",    name = "More Slots",    icon = "🧩", desc = "+1 slot for a Floatie",      per = 1,    max = 20, costBase = 5000,  costGrowth = 2.6, robux = 39 },
+	{ id = "luck",     name = "Luck",          icon = "🍀", desc = "+5% luck on every roll",      per = 0.05, max = 40, costBase = 10000, costGrowth = 2.3, robux = 12 },
+	{ id = "cash",     name = "Cash",          icon = "💰", desc = "+10% Air from every Floatie", per = 0.10, max = 50, costBase = 5000,  costGrowth = 2.2, robux = 14 },
+	{ id = "time",     name = "Time",          icon = "⏱️", desc = "-4% inflate time",            per = 0.04, max = 12, costBase = 25000, costGrowth = 3.0, robux = 10 },
+	{ id = "walk",     name = "Walk Speed",    icon = "👟", desc = "+1 walk speed",               per = 1,    max = 16, costBase = 300,   costGrowth = 1.8, robux = 9 },
 }
 
 ---------------------------------------------------------------------
 -- Rebirth: costs ALL your Air (you need at least the cost). Floaties,
--- pumps and upgrades stay. Cost = CostBase x CostGrowth^rebirths.
+-- pumps and upgrades stay. The first rebirths cost Costs[1], Costs[2], ...;
+-- after the list every rebirth costs CostGrowth times the one before.
+-- Tuned with the play simulation in Stage 16 (free player, play-hours):
+-- about 3 h, 10 h, 30 h, 75 h, 150 h, 300 h, 500 h, 800 h.
 ---------------------------------------------------------------------
 Progression.Rebirth = {
-	CostBase = 250e6,   -- tuned in Stage 15: first rebirth after about an hour
-	CostGrowth = 40,
+	Costs = { 1.5e9, 100e9, 4e12, 50e12, 310e12, 2.1e15, 7.7e15, 23e15 },
+	CostGrowth = 3,
 	CashBonus = 0.50,   -- +50% Cash per rebirth
 	LuckBonus = 0.10,   -- +10% Luck per rebirth
 	SlotsEach = 2,      -- +2 slots per rebirth...

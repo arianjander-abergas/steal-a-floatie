@@ -4,9 +4,9 @@
 
 	Upgrades (Config.Upgrades): each level costs Air (costBase x costGrowth^level)
 	or one Robux developer product (Config.UpgradeProducts[id]).
-	  slots     more slots on your base       luck     +10% Luck
+	  slots     more slots on your base       luck     +5% Luck
 	  cash      +10% Air                      time     -4% inflate time
-	  walk      +1 walk speed                 conveyor +10% mutation chance
+	  walk      +1 walk speed
 
 	Pumps (Config.Pumps): bought with Air in order (you need the one before),
 	owned forever; equip any pump you own.

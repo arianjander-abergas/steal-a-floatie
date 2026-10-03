@@ -140,9 +140,14 @@ function Formulas.upgradeCost(id, level)
 	return math.floor(up.costBase * up.costGrowth ^ level)
 end
 
+-- Air for your next rebirth: the Costs list, then x CostGrowth for each one after it
 function Formulas.rebirthCost(rebirths)
 	local r = Config.Rebirth
-	return r.CostBase * r.CostGrowth ^ rebirths
+	local costs = r.Costs
+	if rebirths < #costs then
+		return costs[rebirths + 1]
+	end
+	return costs[#costs] * r.CostGrowth ^ (rebirths - #costs + 1)
 end
 
 -- Air price of the next Grade Token at the Grading stand

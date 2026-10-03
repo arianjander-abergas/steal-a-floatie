@@ -1,26 +1,34 @@
 --[[
 	Floatie Farm — Notify (ModuleScript child of the ClientMain LocalScript)
-	Toasts: the short colored messages above the hotbar ("You stole a
-	Pupfloat!", "Coming soon!", ...). They live on their own "FloatieToasts"
+	Toasts: the short colored messages under the top bar ("Sold 3 Floaties
+	for 1.2K Air", "Coming soon!", ...). They live on their own "FloatieToasts"
 	screen, so they show above open panels.
 
 	The server sends them through Remotes.Notify (text, kind); client code
 	calls Notify.toast directly. kind picks the color (Config.UI.Toast) and
 	the sound: info (default), success, error, alert, event.
 
+	Server announcements (very rare pulls) are not toasts: they come through
+	Remotes.ChatMessage and go in the chat window only (Notify.chat).
+
 	API:
-	  Notify.mount(canvas)        -- builds the "Toasts" holder, listens to Remotes.Notify
+	  Notify.mount(canvas)        -- builds the "Toasts" holder, listens to Remotes.Notify + ChatMessage
 	  Notify.follow(frame)        -- sit just below this frame's content (the HUD's TopStack)
 	  Notify.toast(text, kind?)   -- works before mount too (queued, up to 5)
+	  Notify.chat(text, rarity?)  -- a system line in the chat window, colored like that rarity
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterGui = game:GetService("StarterGui")
+local TextChatService = game:GetService("TextChatService")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local Kit = require(script.Parent.Kit)
 local Sounds = require(script.Parent.Sounds)
 
-local NotifyRE = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Notify")
+local remotes = ReplicatedStorage:WaitForChild("Remotes")
+local NotifyRE = remotes:WaitForChild("Notify")
+local ChatRE = remotes:WaitForChild("ChatMessage")
 
 local C = Config.UI
 
@@ -105,6 +113,42 @@ function Notify.toast(text, kind)
 end
 
 ---------------------------------------------------------------------
+-- Chat lines
+---------------------------------------------------------------------
+local CHAT_COLOR = Color3.fromRGB(255, 220, 90) -- lines without a rarity
+
+local function escapeRichText(text)
+	return (text:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"):gsub("\"", "&quot;"):gsub("'", "&apos;"))
+end
+
+-- Notify.chat(text, rarity?) — works with the new chat (TextChatService)
+-- and, in places still on it, the legacy chat
+function Notify.chat(text, rarity)
+	text = tostring(text or "")
+	local color = if rarity then Kit.rarityTextColor(rarity) else CHAT_COLOR
+	task.spawn(function()
+		if TextChatService.ChatVersion ~= Enum.ChatVersion.TextChatService then
+			-- the legacy chat may still be starting: try for a few seconds
+			for _ = 1, 10 do
+				local ok = pcall(StarterGui.SetCore, StarterGui, "ChatMakeSystemMessage", {
+					Text = text, Color = color, Font = Enum.Font.GothamBold, TextSize = 18,
+				})
+				if ok then
+					return
+				end
+				task.wait(1)
+			end
+		end
+		local channels = TextChatService:FindFirstChild("TextChannels")
+		local channel = channels and (channels:FindFirstChild("RBXSystem") or channels:FindFirstChild("RBXGeneral"))
+		if channel then
+			pcall(channel.DisplaySystemMessage, channel,
+				('<font color="#%s"><b>%s</b></font>'):format(color:ToHex(), escapeRichText(text)))
+		end
+	end)
+end
+
+---------------------------------------------------------------------
 -- Mount
 ---------------------------------------------------------------------
 
@@ -127,6 +171,7 @@ function Notify.mount(canvas)
 	}, holder)
 
 	NotifyRE.OnClientEvent:Connect(Notify.toast)
+	ChatRE.OnClientEvent:Connect(Notify.chat)
 
 	-- show anything that arrived before the screen existed
 	local pending = queued

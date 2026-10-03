@@ -7,8 +7,9 @@
 	  • while the pump inflates, a balloon above the buttons grows, then pops
 	  • the reveal: a small card for everyday pulls. The big reveal in the
 	    middle of the screen ("1 in 24K", rays, wings) is for pulls that are
-	    rare for YOUR luck, Divine and up, Rainbow / Thunder, and new Rare+
-	    Index entries. With Hide on, only those big ones show.
+	    rare for YOUR luck, Mythic and up, Rainbow / Thunder, and new Rare+
+	    Index entries. With Hide on, nothing pops up at all (no balloon, card
+	    or big reveal); Mythic+ pulls still get their line in the chat.
 	The server decides every result (Remotes.RollResult); this only shows them.
 
 	API:
@@ -68,7 +69,7 @@ end
 -- is this pull worth the big reveal?
 local function isBig(def, mut, isNew)
 	local rarity = Config.Rarities[def.rarity]
-	if rarity.order >= R.AnnounceOrder or R.HideShowsMutations[mut] then
+	if rarity.order >= R.AnnounceOrder or R.BigRevealMutations[mut] then
 		return true
 	end
 	if rarity.order < R.BigRevealOrder then
@@ -242,7 +243,7 @@ local function onResult(result)
 			Sounds.play("Pop")
 			showCard(result)
 		end
-		if big then
+		if big and not hidden then
 			RollUI._showBig(result)
 		end
 	end)

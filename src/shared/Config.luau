@@ -22,7 +22,7 @@ local Config = {}
 -- General
 ---------------------------------------------------------------------
 Config.GameName = "Floatie Farm"
-Config.Version = "1.0.0"                -- bump every update, shown in the HUD
+Config.Version = "1.1.0"                -- bump every update, shown in the HUD
 Config.DataStoreName = "FloatieData_v1" -- NEVER rename after launch (players lose saves)
 Config.SaveVersion = 2                  -- the save format; DataService converts older saves
 
@@ -118,14 +118,15 @@ function Config.Format(n)
 		n /= 1000
 		i += 1
 	end
-	-- round down, so 999.99K never shows as "1000K"; "24.0K" -> "24K", "1.50K" -> "1.5K"
+	-- round down, so 999.99K never shows as "1000K"; "24.0K" -> "24K", "1.50K" -> "1.5K".
+	-- (+1e-7: dividing by 1000 can leave 9.2B as 9.1999999..., which must still show "9.2B")
 	local digits
 	if n < 10 then
-		digits = string.format("%.2f", math.floor(n * 100) / 100)
+		digits = string.format("%.2f", math.floor(n * 100 + 1e-7) / 100)
 	elseif n < 100 then
-		digits = string.format("%.1f", math.floor(n * 10) / 10)
+		digits = string.format("%.1f", math.floor(n * 10 + 1e-7) / 10)
 	else
-		digits = tostring(math.floor(n))
+		digits = tostring(math.floor(n + 1e-7))
 	end
 	if string.find(digits, ".", 1, true) then
 		digits = string.gsub(string.gsub(digits, "0+$", ""), "%.$", "")

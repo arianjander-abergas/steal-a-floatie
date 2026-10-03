@@ -53,7 +53,7 @@ function DataService.template()
 		floaties = {},      -- { uid, id, mut, level, grade, trait, locked, slot } (slot nil = Backpack)
 		nextUid = 1,
 		pumps = { owned = 1, equipped = 1 }, -- pump tiers are bought in order: owned = best tier owned
-		upgrades = { slots = 0, luck = 0, cash = 0, time = 0, walk = 0, conveyor = 0 },
+		upgrades = { slots = 0, luck = 0, cash = 0, time = 0, walk = 0 },
 		items = {
 			gradeTokens = 0,
 			traitGems = 0,
@@ -103,6 +103,11 @@ function DataService.migrate(data)
 		data.v = 2
 	end
 	reconcile(data, DataService.template())
+	-- upgrade levels above a (lowered) max come down to that max; removed upgrades go
+	for id, level in pairs(data.upgrades) do
+		local up = Config.UpgradeById[id]
+		data.upgrades[id] = if up then math.clamp(math.floor(tonumber(level) or 0), 0, up.max) else nil
+	end
 	-- drop Floaties whose id no longer exists, and make every slot and uid unique
 	local valid, usedSlots, usedUids = {}, {}, {}
 	for _, f in ipairs(data.floaties) do

@@ -5,7 +5,7 @@
 	(orange when you can afford it). The server checks the cost again.
 
 	Rebirth costs ALL your Air (at least the cost); Floaties, pumps and
-	upgrades stay. Each one: +50% Cash, +25% Luck, +2 slots (up to +6),
+	upgrades stay. Each one: +50% Cash, +10% Luck, +2 slots (up to +6),
 	5 Grade Tokens (Config.Rebirth).
 
 	API:

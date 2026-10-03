@@ -7,6 +7,7 @@
 	  Core.getProfile(player) the profile once the save has loaded, else nil
 	  Core.remote(name, kind) a RemoteEvent / RemoteFunction in ReplicatedStorage.Remotes
 	  Core.notify(...)        toasts (Remotes.Notify)
+	  Core.chatAll(text, r)   a line in everyone's chat window (Remotes.ChatMessage)
 	  Core.signal()           a tiny event: :Connect(fn), :Fire(...)
 	  Core.hasPass(player, n) owns the game pass (Config.GamePasses key)
 	  Core.rng                the server's Random
@@ -95,6 +96,14 @@ end
 
 function Core.notifyAll(text, kind)
 	NotifyRE:FireAllClients(text, kind or "info")
+end
+
+local ChatRE = Core.remote("ChatMessage")
+
+-- a line in everyone's chat window (nothing on screen); rarity (optional)
+-- colors it like that rarity
+function Core.chatAll(text, rarity)
+	ChatRE:FireAllClients(text, rarity)
 end
 
 ---------------------------------------------------------------------

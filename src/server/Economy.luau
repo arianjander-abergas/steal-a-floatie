@@ -147,7 +147,7 @@ function Economy.mutationMult(player)
 	if not prof then
 		return 1
 	end
-	local m = 1 + prof.data.upgrades.conveyor * Config.UpgradeById.conveyor.per
+	local m = 1
 	if Economy.potionActive(prof, "Mutation") then
 		m *= Config.Potions.Mutation.mult
 	end
