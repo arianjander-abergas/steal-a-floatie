@@ -7,7 +7,7 @@
 	  • while the pump inflates, a balloon above the buttons grows, then pops
 	  • the reveal: a small card for everyday pulls. The big reveal in the
 	    middle of the screen ("1 in 24K", rays, wings) is for pulls that are
-	    rare for YOUR luck, Mythic and up, Rainbow / Thunder, and new Rare+
+	    rare for YOUR luck, Mythic and up, Diamond / Ruby / Rainbow / Thunder, new Rare+
 	    Index entries. With Hide on, nothing pops up at all (no balloon, card
 	    or big reveal); Mythic+ pulls still get their line in the chat.
 	The server decides every result (Remotes.RollResult); this only shows them.
@@ -24,6 +24,7 @@ local RunService = game:GetService("RunService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
+local Formulas = require(Shared:WaitForChild("Formulas"))
 local Kit = require(script.Parent.Kit)
 local Sounds = require(script.Parent.Sounds)
 
@@ -144,7 +145,7 @@ local function showCard(result)
 	else
 		where = "→ Slot " .. tostring(result.slot or "?")
 	end
-	cardInfo.Text = Config.FormatOdds(def.odds) .. "  •  " .. where
+	cardInfo.Text = Config.FormatOdds(Formulas.copyOdds(def.id, result.mut)) .. "  •  " .. where
 	cardNew.Visible = result.new == true
 	card.Border.Color = rarity.color
 	card.Visible = true
@@ -188,7 +189,7 @@ function RollUI._showBig(result)
 	bigShowing = true
 	local rarity = Config.Rarities[def.rarity]
 	local color = Kit.rarityTextColor(def.rarity)
-	bigOdds.Text = Config.FormatOdds(def.odds)
+	bigOdds.Text = Config.FormatOdds(Formulas.copyOdds(def.id, result.mut))
 	bigOdds.TextColor3 = color
 	bigRarity.Text = string.upper(def.rarity) .. (if result.jackpot then "  •  🎰 JACKPOT" else "")
 	bigRarity.TextColor3 = color

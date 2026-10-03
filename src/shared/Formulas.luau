@@ -5,7 +5,7 @@
 	they read Config and the values you pass in, nothing else.
 
 	A Floatie record (from the save) looks like:
-	  { uid = 7, id = "Pupfloat", mut = "Glitter", level = 12, grade = "S", trait = "Helium", locked = false, slot = 3 }
+	  { uid = 7, id = "Pupfloat", mut = "Silver", level = 12, grade = "S", trait = "Helium", locked = false, slot = 3 }
 	slot = nil means it is in the Backpack.
 ]]
 
@@ -58,6 +58,19 @@ end
 function Formulas.traitMult(f)
 	local trait = f.trait and Config.TraitById[f.trait]
 	return if trait then trait.mult else 1
+end
+
+-- "1 in X" for a mutation (1 for Normal; Thunder uses its in-event chance)
+function Formulas.mutationOdds(mutId)
+	local mut = Config.MutationById[mutId or "Normal"]
+	local chance = mut and (if mut.eventOnly then mut.eventChance else mut.chance) or 0
+	return if chance > 0 then 1 / chance else 1
+end
+
+-- "1 in X" for this exact copy, like Anime Dice shows it: Floatie odds x mutation odds
+function Formulas.copyOdds(id, mutId)
+	local def = Config.FloatieById[id]
+	return (def and def.odds or 1) * Formulas.mutationOdds(mutId)
 end
 
 function Formulas.mutationMult(f)

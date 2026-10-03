@@ -7,7 +7,7 @@
 
 	  Grant.give(player, reward) -> { "what was given", ... }
 	  Grant.pickFloatie(spec) -> Floatie def   (spec = { id } or { rarity, orBetter?, upgradeChance?, upgradeTo? })
-	  Grant.randomMutation() -> "Glitter" / "Neon" / "Foil" / "Rainbow"
+	  Grant.randomMutation() -> "Silver" / "Gold" / ... (weighted: Silver is by far the most likely)
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")

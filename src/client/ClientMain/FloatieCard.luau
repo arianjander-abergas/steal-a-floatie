@@ -59,7 +59,7 @@ local function refresh()
 	panel.header.Title.Text = (Cards.MUTATION_ICONS[f.mut] or "🎈") .. " " .. (if f.mut ~= "Normal" then f.mut .. " " else "") .. def.name
 	ui.preview:setFloatie(def.id, f.mut)
 	ui.glow.BackgroundColor3 = rarity.color
-	ui.rarity.Text = string.upper(def.rarity) .. "  •  " .. Config.FormatOdds(def.odds)
+	ui.rarity.Text = string.upper(def.rarity) .. "  •  " .. Config.FormatOdds(Formulas.copyOdds(def.id, f.mut))
 	ui.rarity.TextColor3 = Kit.rarityTextColor(def.rarity)
 	ui.mutation.Text = "Mutation: " .. f.mut .. "  " .. Config.FormatMult(mut.mult)
 	ui.mutation.TextColor3 = if mut.color then mut.color else C.TextSoft

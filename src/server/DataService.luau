@@ -61,7 +61,7 @@ function DataService.template()
 			potions = { Luck = 0, Cash = 0, Mutation = 0 },
 		},
 		activePotions = { Luck = 0, Cash = 0, Mutation = 0 }, -- seconds left (they only tick while you play)
-		index = {},         -- ["Pupfloat|Glitter"] = true
+		index = {},         -- ["Pupfloat|Silver"] = true
 		indexClaimed = 0,   -- Index milestones claimed
 		daily = { day = 0, last = 0 },  -- last Daily Reward day claimed (1..7) and when
 		offerLadder = 0,    -- offer ladder steps claimed
@@ -87,6 +87,9 @@ local function reconcile(data, tmpl)
 	return data
 end
 
+-- mutations that were renamed: old id -> new id
+local OLD_MUTATIONS = { Glitter = "Silver", Neon = "Gold", Foil = "Emerald" }
+
 -- older save formats -> the current one
 function DataService.migrate(data)
 	local fromV1 = (data.v or 1) < 2
@@ -103,6 +106,17 @@ function DataService.migrate(data)
 		data.v = 2
 	end
 	reconcile(data, DataService.template())
+	-- v1.1.0 renamed the mutations (Anime Dice style ladder)
+	for _, f in ipairs(data.floaties) do
+		f.mut = OLD_MUTATIONS[f.mut] or f.mut
+	end
+	for key in pairs(table.clone(data.index)) do
+		local id, mut = string.match(key, "^(.-)|(.+)$")
+		if id and OLD_MUTATIONS[mut] then
+			data.index[key] = nil
+			data.index[id .. "|" .. OLD_MUTATIONS[mut]] = true
+		end
+	end
 	-- upgrade levels above a (lowered) max come down to that max; removed upgrades go
 	for id, level in pairs(data.upgrades) do
 		local up = Config.UpgradeById[id]

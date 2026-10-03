@@ -30,7 +30,10 @@ BASE = dict(
     rebirth_costs=[1500000000, 100000000000, 4000000000000, 50000000000000, 310000000000000, 2100000000000000, 7700000000000000, 23000000000000000], rebirth_growth=3,
     rebirth_base=1.5e9, rebirth_cash=0.5, rebirth_luck=0.10, rebirth_tokens=5,
     sell_mult=20, inflate=2.0, min_inflate=0.5,
-    muts=[("Rainbow", 5, 0.003), ("Foil", 3, 0.012), ("Neon", 2, 0.035), ("Glitter", 1.5, 0.08)],
+    # mutations rarest first (name, mult, chance); Thunder only in Thunderstorm; Luck helps a little
+    muts=[("Rainbow", 12, 1 / 150000), ("Ruby", 8, 1 / 20000), ("Diamond", 5, 1 / 3000), ("Emerald", 3, 1 / 500),
+          ("Gold", 2, 1 / 100), ("Silver", 1.5, 1 / 20)],
+    thunder=(6, 1 / 150), mut_luck_per_tenfold=0.5,
     grade_token_air=(100e3, 1.3), jackpot_luck=999, index_luck=0.02,
     # how the simulated player plays: a 2 h session (Playtime rewards), one Daily claim per 3 h of play,
     # buys anything that pays back within 10 min, Luck/Time upgrades when they cost <= 5 min of income
@@ -165,18 +168,19 @@ class Sim:
         return d
 
     def roll_def(s, mult=1.0):
-        L = s.luck() * mult
+        s.last_luck = L = s.luck() * mult
         secret = 5 if s.event == "SecretSkies" else 1
         cum, vals = s.dist(L, secret)
         r = s.rng.random() * cum[-1]
         return vals[min(bisect.bisect_left(cum, r), len(vals) - 1)]
 
     def roll_mut(s):
-        m = 1.0
+        m = 1.0 + s.P["mut_luck_per_tenfold"] * math.log10(max(1.0, getattr(s, "last_luck", 1.0)))
         if s.pot["mut"] > s.t: m *= 3
         if s.event == "HeliumRain": m *= 4
-        if s.event == "Thunderstorm" and s.rng.random() < min(0.03 * m, 0.9):
-            return "Thunder", 8
+        tm, tc = s.P["thunder"]
+        if s.event == "Thunderstorm" and s.rng.random() < min(tc * m, 0.9):
+            return "Thunder", tm
         for name, mm, c in s.P["muts"]:
             if s.rng.random() < min(c * m, 0.9):
                 return name, mm
@@ -188,6 +192,7 @@ class Sim:
         k = "first_" + d[1]
         if k not in s.ms: s.ms[k] = s.t
         s.index.add((d[0], name))
+        if name != "Normal" and "mut_" + name not in s.ms: s.ms["mut_" + name] = s.t
         f = [d[3] * mm, 1, 1, 1, d[3], d[3] * s.P["sell_mult"] * mm]
         # goes to a slot if it beats the worst placed one, else bench/sold
         if len(s.placed) < s.slots():
@@ -223,9 +228,8 @@ class Sim:
         if r.get("epic"):
             pool = [d for d in s.defs if d[1] == "Epic"]
             d = pick_weighted([(1 / d[2], d) for d in pool], s.rng)
-            muts = s.P["muts"]
-            m = s.rng.choice(muts)
-            s.add(d, (m[0], m[1]))
+            m = pick_weighted([(c, (name, mm)) for name, mm, c in s.P["muts"]], s.rng)  # like Grant.randomMutation
+            s.add(d, m)
 
     def use_items(s):
         # drink potions as they come (each adds 10 min)
@@ -385,7 +389,8 @@ def main():
         res = pool.map(one, [(P, s, hours, cps) for s in range(seeds)])
     keys = ["pump2", "first_Rare", "pump3", "first_Epic", "pump4", "first_Legendary", "rebirth1", "pump5",
             "first_Mythic", "rebirth2", "pump6", "first_Divine", "rebirth3", "pump7", "pump8", "first_Celestial",
-            "rebirth4", "pump9", "pump10", "first_Cosmic", "rebirth5", "pump11", "pump12", "first_Secret"]
+            "rebirth4", "pump9", "pump10", "first_Cosmic", "rebirth5", "pump11", "pump12", "first_Secret",
+            "mut_Silver", "mut_Gold", "mut_Emerald", "mut_Diamond", "mut_Thunder", "mut_Ruby", "mut_Rainbow"]
     print(f"=== {hours} play-hours, {seeds} runs (d* = days of PLAY time) ===")
     for k in keys:
         vals = sorted(r[0][k] for r in res if k in r[0])

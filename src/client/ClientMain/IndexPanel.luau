@@ -1,7 +1,9 @@
 --[[
 	Floatie Farm — IndexPanel (ModuleScript child of the ClientMain LocalScript)
 	The Index (like the Anime Card Farm one):
-	  • mutation tabs down the left (Normal, Glitter, Neon, Foil, Rainbow, Thunder)
+	  • mutation tabs down the left (Normal, Silver, Gold, Emerald, Diamond, Ruby,
+	    Rainbow, Thunder); each entry shows the odds of that exact copy
+	    (Floatie odds x mutation odds), so the rare tabs are the long grind
 	  • "37% Completed · 111/300 Collected" in the header
 	  • every Floatie in that mutation, by rarity: found ones show their 3D
 	    model, the rest a padlock, "???" and their odds
@@ -16,6 +18,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
+local Formulas = require(Shared:WaitForChild("Formulas"))
 local RewardInfo = require(Shared:WaitForChild("RewardInfo"))
 local Kit = require(script.Parent.Kit)
 local Notify = require(script.Parent.Notify)
@@ -78,6 +81,7 @@ local function refresh()
 		e.preview.frame.Visible = has
 		e.lock.Visible = not has
 		e.name.Text = if has then e.def.name else "???"
+		e.odds.Text = Config.FormatOdds(Formulas.copyOdds(e.def.id, mutation))
 		e.name.TextColor3 = if has then Kit.rarityTextColor(e.def.rarity):Lerp(Color3.new(1, 1, 1), 0.35) else C.TextSoft
 		local rarityColor = Config.Rarities[e.def.rarity].color
 		e.frame.BackgroundColor3 = if has then rarityColor:Lerp(DARK, 0.55) else DARK
@@ -126,7 +130,7 @@ function IndexPanel.mount(canvas)
 		table.insert(items, { name = m.id, text = m.id, color = if m.color then m.color:Lerp(Color3.new(0, 0, 0), 0.25) else C.Blue })
 	end
 	tabs = Kit.tabs(body, { Position = UDim2.fromOffset(0, 0), Size = UDim2.fromOffset(150, 292) }, {
-		vertical = true, button = Vector2.new(150, 40), gap = 6, maxTextSize = 16, items = items,
+		vertical = true, button = Vector2.new(150, 31), gap = 4, maxTextSize = 15, items = items, -- 8 tabs fit 292 px
 		onSelect = function(name)
 			mutation = name
 			refresh()
@@ -143,11 +147,11 @@ function IndexPanel.mount(canvas)
 		local preview = Kit.viewport(frame, { Name = "Preview", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 4), Size = UDim2.new(1, -8, 0.58, 0) })
 		local lock = Kit.label(frame, { Name = "Lock", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 8), Size = UDim2.new(1, -24, 0.48, 0), Text = "🔒" }, { outline = 0 })
 		local name = Kit.label(frame, { Name = "FloatieName", Position = UDim2.new(0, 4, 0.62, 0), Size = UDim2.new(1, -8, 0.18, 0) }, { maxTextSize = 15 })
-		Kit.label(frame, {
+		local odds = Kit.label(frame, {
 			Name = "Odds", Position = UDim2.new(0, 4, 0.8, 0), Size = UDim2.new(1, -8, 0.16, 0),
 			Text = Config.FormatOdds(def.odds), TextColor3 = Config.Rarities[def.rarity].color:Lerp(Color3.new(1, 1, 1), 0.3),
 		}, { maxTextSize = 13 })
-		table.insert(entries, { def = def, frame = frame, preview = preview, name = name, lock = lock })
+		table.insert(entries, { def = def, frame = frame, preview = preview, name = name, odds = odds, lock = lock })
 	end
 
 	milestoneBar = Kit.progress(body, {

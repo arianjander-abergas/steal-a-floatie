@@ -12,7 +12,7 @@
 	  tile:setDim(bool)         greyed out (can't be picked here)
 	  tile.button, tile.f
 	  Cards.sorted(list, how)   -> new sorted table; how = "income" | "rarity" | "level" | "value"
-	  Cards.MUTATION_ICONS      Glitter ✨ / Neon 💡 / Foil 🪩 / Rainbow 🌈 / Thunder ⚡
+	  Cards.MUTATION_ICONS      [mutation id] = its icon (Config.Mutations: 🥈 🥇 ❇️ 💠 ♦️ 🌈 ⚡)
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -26,7 +26,10 @@ local C = Config.UI
 
 local Cards = {}
 
-Cards.MUTATION_ICONS = { Glitter = "✨", Neon = "💡", Foil = "🪩", Rainbow = "🌈", Thunder = "⚡" }
+Cards.MUTATION_ICONS = {}
+for _, m in ipairs(Config.Mutations) do
+	Cards.MUTATION_ICONS[m.id] = m.icon
+end
 
 local DARK = Color3.fromRGB(26, 24, 36)
 

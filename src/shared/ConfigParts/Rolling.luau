@@ -27,7 +27,8 @@ Rolling.Rolling = {
 
 	BigRevealOrder = 3,      -- Rare and up get the big reveal (Config.Rarities order)
 	AnnounceOrder = 6,       -- Mythic and up: always the big reveal, and a line in the server chat
-	BigRevealMutations = { Rainbow = true, Thunder = true }, -- these always get the big reveal too
+	BigRevealMutations = { Diamond = true, Ruby = true, Rainbow = true, Thunder = true }, -- always the big reveal too
+	AnnounceMutations = { Ruby = true, Rainbow = true }, -- a chat line too, whatever the rarity
 	-- (with Hide on, no reveal pops up at all)
 
 	JackpotLuck = 999,       -- a Jackpot Roll multiplies your Luck by this for one roll
@@ -40,18 +41,27 @@ Rolling.Rolling = {
 }
 
 ---------------------------------------------------------------------
--- Mutations (rolled after the Floatie, rarest first). chance = base
--- chance; Mutation potions and Helium Rain multiply it.
+-- Mutations (rolled after the Floatie, rarest first), like Anime Dice:
+-- the better the mutation, the rarer it is. chance = 1 / "1 in X".
+-- Your Luck helps a little (x1.5 at x10 Luck, x2 at x100, x2.5 at x1000:
+-- MutationLuckPerTenfold), and Mutation potions and Helium Rain multiply it.
+-- A copy's odds ("1 in 300K" for a Rainbow Pupfloat) = Floatie odds x
+-- mutation odds (Formulas.copyOdds). Old saves: Glitter -> Silver,
+-- Neon -> Gold, Foil -> Emerald (DataService).
 ---------------------------------------------------------------------
 Rolling.Mutations = {
 	{ id = "Normal",  mult = 1,   chance = 0 },
-	{ id = "Glitter", mult = 1.5, chance = 0.08,  color = Color3.fromRGB(255, 240, 170) },
-	{ id = "Neon",    mult = 2,   chance = 0.035, color = Color3.fromRGB(90, 255, 230) },
-	{ id = "Foil",    mult = 3,   chance = 0.012, color = Color3.fromRGB(220, 220, 235) },
-	{ id = "Rainbow", mult = 5,   chance = 0.003, color = Color3.fromRGB(255, 120, 200) },
-	{ id = "Thunder", mult = 8,   chance = 0,     color = Color3.fromRGB(255, 235, 80), eventOnly = "Thunderstorm", eventChance = 0.03 },
+	{ id = "Silver",  mult = 1.5, chance = 1 / 20,     icon = "🥈", color = Color3.fromRGB(205, 212, 226) },
+	{ id = "Gold",    mult = 2,   chance = 1 / 100,    icon = "🥇", color = Color3.fromRGB(255, 196, 50) },
+	{ id = "Emerald", mult = 3,   chance = 1 / 500,    icon = "❇️", color = Color3.fromRGB(45, 205, 110) },
+	{ id = "Diamond", mult = 5,   chance = 1 / 3000,   icon = "💠", color = Color3.fromRGB(160, 230, 255) },
+	{ id = "Ruby",    mult = 8,   chance = 1 / 20000,  icon = "♦️", color = Color3.fromRGB(235, 35, 75) },
+	{ id = "Rainbow", mult = 12,  chance = 1 / 150000, icon = "🌈", color = Color3.fromRGB(255, 120, 200) },
+	-- only while a Thunderstorm event runs
+	{ id = "Thunder", mult = 6,   chance = 0,          icon = "⚡", color = Color3.fromRGB(255, 235, 80), eventOnly = "Thunderstorm", eventChance = 1 / 150 },
 }
-Rolling.MaxMutationChance = 0.9 -- no single mutation ever goes above 90%
+Rolling.MaxMutationChance = 0.9     -- no single mutation ever goes above 90%
+Rolling.MutationLuckPerTenfold = 0.5 -- mutation chances x(1 + 0.5 x log10(Luck))
 
 ---------------------------------------------------------------------
 -- Pump tiers (the "dice"). Bought with Air at the Pump Shop, in order,

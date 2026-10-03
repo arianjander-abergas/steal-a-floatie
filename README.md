@@ -43,8 +43,8 @@ uses Jackpot Rolls, Grade Tokens and Trait Gems, and saves for the next Pump. Ex
 | Pump 3 / Pump 4 | ~25 min / ~1.5 h |
 | First Legendary | ~1 h (often the 60-minute Jackpot Roll) |
 | First rebirth | ~3 h |
-| Pump 5 / first Mythic | ~5.5 h / ~7 h |
-| Pump 6 / first Divine | ~14 h / ~20 h |
+| Pump 5 / first Mythic | ~5 h / ~3–7 h |
+| Pump 6 / first Divine | ~14 h / ~18–20 h |
 | Pump 7 / Pump 8 | ~36 h / ~57 h |
 | First Celestial | ~5 days |
 | First Cosmic | ~10 days |
@@ -54,10 +54,23 @@ uses Jackpot Rolls, Grade Tokens and Trait Gems, and saves for the next Pump. Ex
 Rules of thumb when changing them:
 - Odds climb about x1.65 per Floatie (x12 per rarity), from 1 in 2 to 1 in 100B, like Anime Dice's "1 in 24B" units.
 - Pump luck grows slowly (x1 to x200); prices were fitted so each Pump is a real goal.
-- Luck upgrade: +5% per level, max 40 (x3). There is no Conveyor Luck upgrade any more: mutations only come from their base chances, Mutation potions and Helium Rain.
+- Luck upgrade: +5% per level, max 40 (x3). There is no Conveyor Luck upgrade any more.
+- Mutations follow Anime Dice's ladder: the better, the rarer. Luck helps a little (x1.5 at x10 Luck, x2.5 at x1000), Mutation potions x3, Helium Rain x4.
+
+  | Mutation | Chance | Income |
+  |---|---|---|
+  | Silver | 1 in 20 | x1.5 |
+  | Gold | 1 in 100 | x2 |
+  | Emerald | 1 in 500 | x3 |
+  | Diamond | 1 in 3,000 | x5 |
+  | Ruby | 1 in 20,000 | x8 |
+  | Rainbow | 1 in 150,000 | x12 |
+  | Thunder (Thunderstorm event only) | 1 in 150 during it | x6 |
+
+  A free player finds their first Diamond after ~40 min, Ruby ~3 h, Rainbow ~1 day of play; a Rainbow of one *specific* Floatie is far rarer (Rainbow Dragonflate = 1 in 11B). A copy shows its own odds: Floatie odds x mutation odds ("1 in 300K" for a Rainbow Pupfloat). The Index has 400 entries (50 Floaties x Normal + 7 mutations), so the Ruby and Rainbow tabs are the long grind. Ruby and Rainbow pulls are announced in chat.
 - A Level Up costs `Floatie income x 100 x 1.08^(level-1)`, so leveling pays back in about the same time for every Floatie.
 - Rebirth takes ALL your Air (at least the cost); Floaties, Pumps and upgrades stay. Costs: 1.5B, 100B, 4T, 50T, 310T, 2.1Qa, 7.7Qa, 23Qa, then x3 each. Each one gives +50% cash, +10% luck and +2 slots (up to +6).
-- Mythic and better pulls (and Legendary+ from a Jackpot Roll) are announced in the server chat, never on screen. The HIDE button turns off every roll popup.
+- Mythic and better pulls (Legendary+ from a Jackpot Roll, and any Ruby or Rainbow) are announced in the server chat, never on screen. The HIDE button turns off every roll popup.
 - If you change Floatie incomes or odds, re-check these times: the whole curve depends on them.
 - Re-check with the simulator (Python 3, no extra packages): `python tools/econ_sim.py 200 8` plays 8 free players for 200 play-hours and prints when they reach each milestone. Its defaults copy the game's numbers, so update them with ConfigParts. `tools/econ_fit.py` re-fits Pump prices and rebirth costs to target times.
 
@@ -71,7 +84,6 @@ Rules of thumb when changing them:
 | `src/server/` | `ServerScriptService/Server` | Rolling, Floaties, Bases, Economy, Upgrades, Rebirth, Index, Rewards, Potions, Reroll, Shop, Trading, Events, DataService (saving), Sync (client copy of the save), Admin, MapBuilder |
 | `src/client/ClientMain/` | `StarterPlayer/StarterPlayerScripts/ClientMain` | Kit (UI toolkit), HUD and every panel (Backpack, Index, Pump Shop, Upgrades, Rebirth, Rewards, Shop, Trade, ...), roll and conveyor effects, tutorial |
 
-`CarryBox`, `Darts` and `Knockback` in `ClientMain` are left over from Steal a Floatie and are no longer used.
 `Art/` holds the game icon and thumbnail for the Roblox page. `tools/` holds the economy simulator (not part of the game).
 
 ## Editing with Rojo

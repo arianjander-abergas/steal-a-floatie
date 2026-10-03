@@ -15,7 +15,7 @@
 	  RollResult (to you)          { id, mut, dest, soldFor, uid, slot, inflateTime, jackpot, rollNumber, new }
 	  PumpPuff (to players nearby) (baseIndex, inflateTime) a balloon inflates at that base's pump
 	  ConveyorRide (to nearby)     { base, id, mut, slot, dest, soldFor, ride, walk } after the pop
-	  ChatMessage (to everyone)    Mythic+ pulls are announced in the chat (Core.chatAll)
+	  ChatMessage (to everyone)    Mythic+ / Ruby / Rainbow pulls are announced in the chat (Core.chatAll)
 	Player attributes: AutoRoll, Hide, AutoSell, JackpotReady
 ]]
 
@@ -25,6 +25,7 @@ local RunService = game:GetService("RunService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
+local Formulas = require(Shared:WaitForChild("Formulas"))
 local Core = require(script.Parent.Core)
 local Economy = require(script.Parent.Economy)
 local Bases = require(script.Parent.Bases)
@@ -101,9 +102,11 @@ function Rolling.pickFloatie(player, luckMult)
 	return if #commons > 0 then weightedPick(commons) else Config.Floaties[1]
 end
 
--- rarest mutation first; Mutation potions and Helium Rain multiply the chances
-function Rolling.pickMutation(player)
-	local mult = Economy.mutationMult(player)
+-- rarest mutation first; Luck helps a little (x1.5 per tenfold, a Jackpot
+-- Roll's luck counts too), Mutation potions and Helium Rain multiply the chances
+function Rolling.pickMutation(player, luckMult)
+	local luck = Economy.luck(player) * (luckMult or 1)
+	local mult = Economy.mutationMult(player) * (1 + Config.MutationLuckPerTenfold * math.log10(math.max(1, luck)))
 	local _, evName = Economy.activeEvent()
 	for i = #Config.Mutations, 2, -1 do
 		local m = Config.Mutations[i]
@@ -180,7 +183,7 @@ function Rolling.roll(player)
 	else
 		def = Rolling.pickFloatie(player, if jackpot then R.JackpotLuck else 1)
 	end
-	local mut = Rolling.pickMutation(player)
+	local mut = Rolling.pickMutation(player, if jackpot then R.JackpotLuck else 1)
 	data.totalRolls = n
 	Sync.field(player, "totalRolls")
 
@@ -216,8 +219,9 @@ function Rolling.roll(player)
 		end
 		-- very rare pulls go in the server chat (not on everyone's screen)
 		local rarity = Config.Rarities[def.rarity]
-		if rarity.order >= R.AnnounceOrder or (jackpot and rarity.order >= 5) then
-			Core.chatAll(("🌟 %s pulled a %s %s (%s)!"):format(player.DisplayName, string.upper(def.rarity), rollLabel(def, mut), Config.FormatOdds(def.odds)), def.rarity)
+		if rarity.order >= R.AnnounceOrder or (jackpot and rarity.order >= 5) or R.AnnounceMutations[mut] then
+			Core.chatAll(("🌟 %s pulled a %s %s (%s)!"):format(player.DisplayName, string.upper(def.rarity), rollLabel(def, mut),
+				Config.FormatOdds(Formulas.copyOdds(def.id, mut))), def.rarity)
 		end
 	end)
 	Core.StatsChanged:Fire(player) -- TotalRolls on the HUD (and the quick starter rolls end)

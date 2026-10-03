@@ -47,6 +47,7 @@ local Debris = game:GetService("Debris")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(script.Parent:WaitForChild("Config"))
+local Formulas = require(script.Parent:WaitForChild("Formulas"))
 
 local FloatieModel = {}
 
@@ -911,16 +912,30 @@ local function applyRarity(ctx, def)
 	end
 end
 
+-- Silver / Gold: metallic foil balloons. Emerald / Diamond / Ruby: see-through
+-- gem balloons that glow. The Floatie's own colors still show a little.
+local MUTATION_LOOKS = {
+	Silver  = { tint = 0.75, material = Enum.Material.Foil, reflectance = 0.35, sparkle = 6 },
+	Gold    = { tint = 0.8, material = Enum.Material.Foil, reflectance = 0.35, sparkle = 10 },
+	Emerald = { tint = 0.75, material = Enum.Material.Glass, transparency = 0.15, reflectance = 0.2, sparkle = 10, glow = 8 },
+	Diamond = { tint = 0.85, material = Enum.Material.Glass, transparency = 0.3, reflectance = 0.4, sparkle = 16, glow = 10 },
+	Ruby    = { tint = 0.8, material = Enum.Material.Glass, transparency = 0.15, reflectance = 0.25, sparkle = 14, glow = 12 },
+}
+
 local function applyMutation(model, mutId)
 	local body = model:FindFirstChild("Body")
+	local look = MUTATION_LOOKS[mutId]
+	local mut = Config.MutationById[mutId]
 	for _, p in ipairs(model:GetChildren()) do
 		if p:IsA("BasePart") and p:GetAttribute("Paint") then
-			if mutId == "Neon" then
-				p.Material = Enum.Material.Neon
-			elseif mutId == "Foil" then
-				p.Material = Enum.Material.Foil
-				p.Reflectance = 0.35
-			elseif mutId == "Glitter" or mutId == "Rainbow" then
+			if look then
+				p.Color = p.Color:Lerp(mut.color, look.tint)
+				p.Material = look.material
+				p.Reflectance = look.reflectance
+				if look.transparency and p.Transparency < look.transparency then
+					p.Transparency = look.transparency
+				end
+			elseif mutId == "Rainbow" then
 				p.Reflectance = 0.3
 			end
 		end
@@ -928,11 +943,15 @@ local function applyMutation(model, mutId)
 	if not body then
 		return
 	end
-	if mutId == "Glitter" then
-		emitter(body, "Sparkles", Color3.fromRGB(255, 245, 200), { Rate = 10 })
+	if look then
+		emitter(body, "Sparkles", mut.color:Lerp(WHITE, 0.5), { Rate = look.sparkle })
+		if look.glow then
+			light(body, mut.color, look.glow, 1.2)
+		end
 	elseif mutId == "Rainbow" then
 		CollectionService:AddTag(model, "RainbowFloatie") -- the client cycles the colors
-		emitter(body, "Sparkles", WHITE, { Rate = 14 })
+		emitter(body, "Sparkles", WHITE, { Rate = 18 })
+		light(body, Color3.fromRGB(255, 210, 245), 14, 1.6)
 	elseif mutId == "Thunder" then
 		light(body, Color3.fromRGB(255, 240, 120), 14, 2)
 		emitter(body, "Sparkles", Color3.fromRGB(255, 240, 80), { Rate = 20 })
@@ -1220,7 +1239,8 @@ function FloatieModel.SetLabel(model, f, incomePerSec)
 	end
 	gui.Info.Text = info
 	gui.Income.Text = "+" .. Config.Format(incomePerSec or 0) .. " Air/s"
-	gui.Extra.Text = if rarity.order >= 3 then Config.FormatOdds(def.odds) else ""
+	-- the odds of this exact copy (a mutation multiplies them), for Rare+ or mutated ones
+	gui.Extra.Text = if rarity.order >= 3 or mut ~= "Normal" then Config.FormatOdds(Formulas.copyOdds(def.id, mut)) else ""
 	gui.Extra.TextColor3 = if def.rarity == "Secret" then WHITE else rarity.color
 end
 

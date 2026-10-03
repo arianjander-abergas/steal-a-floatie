@@ -8,7 +8,7 @@
 	  incomeMinutes = 10, minAir = 500   that many minutes of your current income (at least minAir)
 	  gradeTokens = 3, traitGems = 3, jackpotRolls = 1
 	  potions = { Luck = 2, Cash = 1, Mutation = 1 }
-	  floatie = { id = "Kittiloon" } or { rarity = "Epic" }, plus mutation = "Glitter" or "random"
+	  floatie = { id = "Kittiloon" } or { rarity = "Epic" }, plus mutation = "Silver" or "random" (random = weighted by how rare each is)
 	  text = "..."                       what the reward tile says (made up from the above if missing)
 ]]
 
@@ -69,7 +69,7 @@ Rewards.EventInterval = 15 * 60
 Rewards.Events = {
 	HeliumRain   = { title = "🎈 HELIUM RAIN",  desc = "Mutation chance x4!",               duration = 180, mutationMult = 4 },
 	GoldenHour   = { title = "✨ GOLDEN HOUR",  desc = "All Floaties earn 2x Air!",         duration = 180, incomeMult = 2 },
-	Thunderstorm = { title = "⛈️ THUNDERSTORM", desc = "Thunder Floaties (x8) can appear!", duration = 150 },
+	Thunderstorm = { title = "⛈️ THUNDERSTORM", desc = "Thunder Floaties (x6) can appear!", duration = 150 },
 	SecretSkies  = { title = "🌌 SECRET SKIES", desc = "Secret odds x5!",                   duration = 120, secretLuck = 5 },
 	LuckyBreeze  = { title = "🍀 LUCKY BREEZE", desc = "Everyone's Luck x2!",               duration = 180, luckMult = 2 },
 }
@@ -80,7 +80,7 @@ Rewards.Events = {
 ---------------------------------------------------------------------
 Rewards.Codes = {
 	RELEASE = { incomeMinutes = 10, minAir = 1000 },
-	FLOATIE = { floatie = { id = "Kittiloon" }, mutation = "Glitter" },
+	FLOATIE = { floatie = { id = "Kittiloon" }, mutation = "Silver" },
 	LUCKY = { potions = { Luck = 1 } },
 	-- LIKES1K = { air = 5000 },   -- example: add when the game hits 1,000 likes
 }

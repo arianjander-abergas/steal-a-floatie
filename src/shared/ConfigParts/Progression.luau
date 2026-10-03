@@ -110,7 +110,7 @@ Progression.Rebirth = {
 }
 
 ---------------------------------------------------------------------
--- Index: 50 Floaties x 6 versions (Normal + 5 mutations) = 300 entries.
+-- Index: 50 Floaties x 8 versions (Normal + 7 mutations) = 400 entries.
 -- Each milestone also gives +2% Luck forever. Reward keys: see
 -- Config.Rewards at the top of the Rewards part.
 ---------------------------------------------------------------------
