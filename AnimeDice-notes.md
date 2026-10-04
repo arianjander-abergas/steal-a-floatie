@@ -4,7 +4,7 @@ Game: [UPD 6] Anime Dice — https://www.roblox.com/games/113290951185459/Anime-
 Captured: Sun 4 Oct 2026, about 12:55–13:25 and 14:02–14:35 (PH time), in the Roblox Player on this PC.
 Nothing was bought (Robux or in-game cash) and no purchase prompt was opened.
 
-**Status:** all five items are covered, plus the Grades and Traits odds (section 7, from your screenshots of those menus). Gap: dice **prices** aren't shown in the game, because every die is already owned.
+**Status:** all five items are covered, plus the Grades and Traits odds (section 7, from your screenshots) and web research on dice prices, Market, Sell Units, Gears and the Griffin roll (section 8). Gap: prices for the four newest dice aren't published anywhere I could reach.
 
 Notation: the game uses short-scale suffixes: k (thousand), m (million), b (billion), t (trillion), qd (quadrillion), qi (quintillion), sx (sextillion), sp (septillion). "1 in X" values are copied exactly as the game shows them. The game rounds them, e.g. it shows Maheto as "1 in 16k" in the normal tab but as "1 in 165k" in the Huge tab.
 
@@ -455,10 +455,104 @@ That's 15 traits in total: 9 single-stat traits (3 families × 3 levels) and 6 a
 
 ---
 
+## 8. Web research (4 Oct, evening): dice prices, Market, Sell Units, Gears, Griffin
+I searched guide sites, fan wikis, YouTube and TikTok listings. Some sources were unreachable: Sportskeeda's Anime Dice pages (blocked), YouTube video pages and search (blocked or rate-limited), and a few wikis (403 errors). TikTok only surfaced tag pages, no readable posts. The fan wikis vary in quality (one homepage even mixes in another game's units), so I mark which facts are **corroborated** by 2+ separate sites or by what we saw in-game. Everything here is older than the UPD 6 game we played unless stated.
+
+### Dice prices (cash). Recorded during **Update 4** (7–17 Sep); may have changed since
+| Die | Luck (then) | Price | Sources |
+|---|---|---|---|
+| Normal | 2x | $1 | animedicecodes |
+| Fire | 5x | $2.5K | 3 sources ✓ |
+| Water | 10x | $10K | 2 ✓ |
+| Nature | 20x | $75K | 3 ✓ (one older guide says free) |
+| Lightning | 42x | $500K | 4 ✓ |
+| Ice | 100x | $4M | 4 ✓ |
+| Magma | 200x | $30M | 4 ✓ |
+| Storm | 400x | $200M | 4 ✓ |
+| Shadow | 750x | $1.5B | 4 ✓ |
+| Light | 1,500x | $12B | 4 ✓ |
+| Blood Moon | 3,000x | $100B | 4 ✓ |
+| Void | 6,000x | $750B | 2 ✓ (early Sept: 5,000x for $1.5T) |
+| Solar | 12,500x | $5T | 2 ✓ |
+| Lunar | 25,000x | $37T | 2 ✓ |
+| Galaxy | 50,000x | $150T | 2 ✓ |
+| Black Hole | 100,000x | $1Qd | 2 ✓ |
+| Dragon | 200,000x | $8.5Qd | 2 ✓ |
+| Royal | 400,000x | $100Qd | 2 ✓ |
+| Prismatic | 1,000,000x | $1Qi | 2 ✓ |
+| Arcane | 2,000,000x | $12Qi | 2 ✓ |
+| Corrupted | 5,000,000x | $150Qi | 2 ✓ |
+| Titan | 10,000,000x | $1Sx | 2 ✓ |
+| Chrono | 25,000,000x | $15Sx | 2 ✓ |
+| Cyber | 62,500,000x | $100Sx | animedicecodes |
+| Toxic | 150,000,000x | $750Sx | animedicecodes |
+| Ethereal, Frostfire, Alchemy, Radiant | — | **not found** (added after UPD 4; the one page that likely lists them, Sportskeeda's "All Dice", was blocked) | — |
+
+- The luck values match what we saw in-game in UPD 6. The **rarity tags were one tier higher in UPD 4** for many dice (e.g. Galaxy Divine → now Mythical, Toxic Secret II → now Secret I). They moved down when Secret II/Heavenly dice were added, so prices may have been re-tuned too.
+- **Design pattern:** each die costs a median **×7.5** the previous one (range ×4–×15) while luck doubles. That puts price ≈ luck^2.8, so better dice get much more expensive per unit of luck.
+
+### Rebirth (reported for early updates; your account is at 40x = MAX)
+R1 $50K → 1.5x, R2 $5M → 2x, R3 $500M → 2.5x (luck and cash both); then "$50B". A UPD 4 wiki summarises it as "$50K for 1.5x up to $1Sp for 17.5x". One guide gives R1 as $500K instead. Rebirth resets cash and keeps units.
+
+### Market (MARKET stall / Shop button)
+It opens the **Shop**: game passes and Robux products, with the **codes box at the bottom** (GamesRadar, 1 Oct). List prices reported on 12 Sep: More Cash 199, Luck 199, VIP 249, Roll Speed 349, Ultra Luck 499, Double Roll 799 Robux. Your HUD buttons showed lower prices with "OP!" badges (79–319), possibly a sale; not verified.
+
+### Sell Units (stall next to the Dice Shop): corroborated
+- The NPC dialog offers: "1.) I want to sell this! 2.) I want to sell my inventory! 3.) Edit auto sell settings! 4.) Goodbye!"
+- **Auto sell is a "1 in N" threshold**: "Auto sell units below a 1 in [ ] chance", the same odds grammar as cards and the Index. The Settings menu has its own Auto Sell field (shown as e.g. "1t") plus a **Roll Cutscenes** on/off toggle.
+- "Sell inventory" shows a confirm dialog listing every unit with its $/s and one total payout. No sell-value formula is published.
+- Guides' advice: press **Equip Best** before mass-selling, and check every duplicate for mutations first.
+
+### Gears (ProGameGuides, 30 Sep, written for "Update 2.5", may be outdated)
+Gears are **tower drops only**, with 5 slots (Head, Torso, Back, Waist, Upper) and 3 drop bands per tower: floors 20/25+ at 0.5%, 50/60+ at 0.25%, 90+ at 0.02%.
+
+| Tower | 0.5% drop | 0.25% drop | 0.02% drop (floor 90+) |
+|---|---|---|---|
+| Dragon | Golden Hair (Head): Cash ×1.25 | Pikolo's Cape (Back): Damage ×1.5 | Angel's Halo (Upper): Luck +30%, Walk Speed +5 |
+| Cursed | Todoh's Vest (Torso): Luck +12.5% | Jogu's Robe (Back): Trait roll chance +15% | Sakuna's Sash (Waist): Damage ×2, Luck +30%, Gems +30% |
+| Pirate | Usop's Hat (Head): Luck +15% | Zaro's Swords (Waist): Cash ×1.5, Damage ×1.5 | Enol's Drums (Back): Luck +40%, Cash ×1.5 |
+| Hidden Leaf | Shizui's Tanto (Back): Luck +15% | Obita's War Fan (Back): Luck +25%, Cash ×1.5 | Obita's Mask (Head): Luck +40%, Gems +30% |
+| Slayer | Nezuka's Bamboo (Head): Gems +10% | Tanjuro's Katana (Waist): Cash ×1.75 | Mazun's Coat (Torso): Luck +50%, Cash ×2 |
+
+The towers match the potion families we saw (Dragon, Cursed, Pirate, Leaf, Slayer). Update 4 also added an **Infinity Tower** with tier-four potions.
+
+### Lucky Spins and Tickets
+- **Lucky Spins** (from codes) are **consumed by your next roll automatically**: the game shows "+1 Lucky Spin Consumed! Roll to use". They multiply the die's luck for that roll. Guides say to pause Auto Roll before redeeming codes so spins aren't wasted. (Corroborated.)
+- **Tickets** come from codes and from daily quests (e.g. 5 Tickets for beating two towers). What they're spent on isn't documented.
+
+### The "Griffin 1 in 220qd" roll: still unexplained
+No source mentions Griffin. Two partial explanations:
+1. A fan wiki states that "the odds on a card belong to that exact copy, size and mutation included". That fits our size × mutation model, but it doesn't explain why the Huge and Silver 220qd Griffin entries stayed locked.
+2. A pending **Lucky Spin** applies to your next roll automatically. It would explain why that roll was so much rarer than the usual results (220qd against the normal 4t–940t), but not the ×10.
+
+**How to settle it in-game:** find that Griffin copy (Backpack → Units, or its pad on your plot) and read its own card. The odds and any mutation tag on the card will show what the ×10 was.
+
+### Cross-check of your Grade/Trait screenshots
+A 2 Oct tier list (gamer.org) gives lower trait chances than your menu showed:
+
+| Trait | Their number | Your menu | Your menu ÷ theirs |
+|---|---|---|---|
+| Paradox | 0.001% | 0.0022% | ×2.2 |
+| Eternal | 0.0025% | 0.0051% | ×2.0 |
+| Transcendent | 0.0063% | 0.011% | ×1.7 |
+| Monarch | 0.025% | 0.042% | ×1.7 |
+| Shogun | 0.12% | 0.18% | ×1.5 |
+| Samurai | 0.5% | 0.67% | ×1.3 |
+| III traits | 1.2% | 1.5% | ×1.25 |
+
+So the menu's percentages most likely **include your own Trait Luck** (+1.25x from upgrades, possibly gear like Jogu's Robe), and luck lifts rare outcomes more than common ones. Earlier guides also list slightly different grade/trait values (C ×1.3, B ×1.6, Eternal ×27 in UPD 4), so these were re-balanced between updates. No source publishes mutation chances, and one wiki notes that the game doesn't print a mutation multiplier on unit cards.
+
+### Sources (all read 4 Oct 2026)
+- allthings.how: [Best Dice, Upgrade Priority, Rebirth Tips (4 Sep)](https://allthings.how/anime-dice-best-dice-upgrade-priority-and-rebirth-tips/) · [Upgrade Priority and Rebirth Timing (14 Sep)](https://allthings.how/?p=180954) · [Full Guide, Update 4 (13 Sep)](https://allthings.how/anime-dice-full-guide-for-roblox-update-4/) · [How to Progress Fast (15 Sep)](https://allthings.how/anime-dice-roblox-how-to-progress-fast-full-guide/) · [Lunar Dice (20 Sep)](https://allthings.how/?p=201859)
+- Fan wikis: [animedicecodes.wiki/dice (17 Sep)](https://animedicecodes.wiki/dice) · [animedicecodes.wiki/faq](https://animedicecodes.wiki/faq/) · [animedicecodes.wiki/units](https://animedicecodes.wiki/units) · [animedice.org/dice](https://animedice.org/dice/) · [animedice.org/rebirth](https://animedice.org/rebirth/) · [animedice.org/towers](https://animedice.org/towers/) · [animedice.org/updates](https://animedice.org/updates/) · [animediceguide.wiki selling units (29 Sep)](https://animediceguide.wiki/guides/selling-units/) · [animediceguide.wiki settings (29 Sep)](https://animediceguide.wiki/guides/settings/) · [animediceguide.wiki mutations (22 Sep)](https://animediceguide.wiki/guides/mutations/)
+- Others: [ProGameGuides gear list (30 Sep)](https://progameguides.com/roblox/all-anime-dice-gear-stats-how-to-get/) · [ProGameGuides codes, UPD 6 (1 Oct)](https://progameguides.com/roblox/anime-dice-codes/) · [GamesRadar codes (1 Oct)](https://www.gamesradar.com/games/simulation/anime-dice-codes/) · [Insider Gaming codes (24 Sep)](https://insider-gaming.com/roblox-anime-dice-codes/) · [Earnaldo beginner's guide (12 Sep)](https://earnaldo.com/blog/anime-dice-beginners-guide) · [gamer.org traits tier list (2 Oct)](https://gamer.org/anime-dice-traits-tier-list)
+
+---
+
 ## Still to collect next session
-1. Dice **prices**. They aren't displayed because every die is owned; you'd need a fresh/alt account to see them.
-2. The Market / Sell Units / Gears contents.
-3. What the extra ×10 on the "Griffin 1 in 220qd" banner was (section 4).
+1. Prices of the four newest dice (Ethereal, Frostfire, Alchemy, Radiant), and whether older prices changed after UPD 4. You'd see them on a fresh account, or on Sportskeeda's "All Dice" page in a normal browser.
+2. In-game check of the Griffin copy's card (section 8).
+3. Your sell values (Sell Units → sell this), and the current Gears list in your Backpack → Gears tab.
 
 ## Screenshots (`AnimeDice-screenshots/`)
 
