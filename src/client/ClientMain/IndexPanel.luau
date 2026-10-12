@@ -152,7 +152,7 @@ function IndexPanel.mount(canvas)
 	for _, form in ipairs(Config.Forms) do
 		table.insert(sizeItems, { name = form.id, text = form.id, color = if form.color then form.color:Lerp(Color3.new(0, 0, 0), 0.3) else C.Blue })
 	end
-	sizeTabs = Kit.tabs(body, { Position = UDim2.fromOffset(160, 0), Size = UDim2.new(1, -160, 0, 32) }, {
+	sizeTabs = Kit.tabs(body, { Name = "SizeTabs", Position = UDim2.fromOffset(160, 0), Size = UDim2.new(1, -160, 0, 32) }, {
 		button = Vector2.new(170, 30), gap = 6, maxTextSize = 15, items = sizeItems,
 		onSelect = function(name)
 			size = name

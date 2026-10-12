@@ -95,6 +95,7 @@ Rolling.pickCopy = function()
 	return Config.FloatieById.Pupfloat, "Rainbow", "Titanic"
 end
 prof.nextRollAt = 0
+d.totalRolls = math.max(d.totalRolls, Config.Rolling.StarterRolls) -- past the scripted starter rolls
 print("[T18] forced Titanic Rainbow Pupfloat roll:", Rolling.roll(p))
 Rolling.pickCopy = real
 
