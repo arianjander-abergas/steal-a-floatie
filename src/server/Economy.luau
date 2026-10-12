@@ -81,8 +81,8 @@ end
 ---------------------------------------------------------------------
 -- The multipliers
 ---------------------------------------------------------------------
--- forRarity: pass the rarity being checked to include Secret Skies (Secret only)
-function Economy.luck(player, forRarity)
+-- your Luck (Secret Skies and Mutation boosts are applied per copy in Rolling.pickCopy)
+function Economy.luck(player)
 	local prof = Core.profiles[player]
 	if not prof then
 		return 1
@@ -103,9 +103,6 @@ function Economy.luck(player, forRarity)
 	local ev = Economy.activeEvent()
 	if ev and ev.luckMult then
 		luck *= ev.luckMult
-	end
-	if ev and ev.secretLuck and forRarity == "Secret" then
-		luck *= ev.secretLuck
 	end
 	return luck
 end
@@ -141,7 +138,8 @@ function Economy.cash(player)
 	return cash
 end
 
--- multiplies every mutation's chance
+-- Mutation potions x Helium Rain: mutated copies count as this many times
+-- less rare when your pull is picked (Rolling.pickCopy)
 function Economy.mutationMult(player)
 	local prof = Core.profiles[player]
 	if not prof then

@@ -998,9 +998,9 @@ local function addLabel(model, root, height)
 		t.Parent = gui
 		return t
 	end
-	line("Extra", 1, 16, Color3.fromRGB(255, 240, 140))
-	line("Rarity", 2, 14, WHITE)
-	line("NameLine", 3, 22, WHITE)
+	line("Extra", 1, 16, Color3.fromRGB(255, 240, 140)) -- the mutation, in its color
+	line("NameLine", 2, 22, WHITE)                     -- size + name ("Huge Dragonflate")
+	line("Rarity", 3, 14, WHITE)                       -- RARITY • 1 in X (of this copy)
 	line("Info", 4, 14, Color3.fromRGB(210, 230, 255))
 	line("Income", 5, 16, Color3.fromRGB(120, 255, 140))
 end
@@ -1207,8 +1207,9 @@ end
 
 --[[
 	SetLabel(model, f, incomePerSec)
-	f = a Floatie record { id, mut, level, grade, trait } (level etc. may be missing)
-	Lines: "1 in 24K" (Rare and up) / RARITY / [Mutation] Name / Lv · size · grade · trait / +Air/s
+	f = a Floatie record { id, mut, form, level, grade, trait } (level etc. may be missing)
+	Lines, like Anime Dice's labels: Mutation / [Huge] Name / RARITY • 1 in X /
+	Lv · size · grade · trait / +Air/s. The rarity and odds are this copy's own.
 ]]
 local SIZE_NAMES = { "Deflated", "Puffy", "Round", "Chonky", "MEGA" }
 function FloatieModel.SetLabel(model, f, incomePerSec)
@@ -1217,7 +1218,10 @@ function FloatieModel.SetLabel(model, f, incomePerSec)
 	if not gui or not def then
 		return
 	end
-	local rarity = Config.Rarities[def.rarity]
+	local mutId = f.mut or "Normal"
+	local odds = Formulas.copyOdds(def.id, mutId, f.form)
+	local rarityName = Config.RarityForOdds(odds)
+	local rarity = Config.Rarities[rarityName]
 	local level = f.level or 1
 	local sizeName = SIZE_NAMES[1]
 	for i, size in ipairs(Config.Sizes) do
@@ -1225,10 +1229,12 @@ function FloatieModel.SetLabel(model, f, incomePerSec)
 			sizeName = size.name or SIZE_NAMES[i]
 		end
 	end
-	local mut = f.mut or "Normal"
-	gui.NameLine.Text = if mut ~= "Normal" then mut .. " " .. def.name else def.name
-	gui.Rarity.Text = string.upper(def.rarity)
-	gui.Rarity.TextColor3 = if def.rarity == "Secret" then WHITE else rarity.color
+	local mut = Config.MutationById[mutId]
+	gui.Extra.Text = if mutId ~= "Normal" then mutId else ""
+	gui.Extra.TextColor3 = if mut and mut.color then mut.color else Color3.fromRGB(255, 240, 140)
+	gui.NameLine.Text = Formulas.copyName(def.id, nil, f.form)
+	gui.Rarity.Text = string.upper(rarityName) .. " • " .. Config.FormatOdds(odds)
+	gui.Rarity.TextColor3 = if rarityName == "Secret" then WHITE else rarity.color
 	local info = "Lv " .. level .. " • " .. sizeName
 	if f.grade and f.grade ~= "C" then
 		info ..= " • " .. f.grade
@@ -1239,9 +1245,6 @@ function FloatieModel.SetLabel(model, f, incomePerSec)
 	end
 	gui.Info.Text = info
 	gui.Income.Text = "+" .. Config.Format(incomePerSec or 0) .. " Air/s"
-	-- the odds of this exact copy (a mutation multiplies them), for Rare+ or mutated ones
-	gui.Extra.Text = if rarity.order >= 3 or mut ~= "Normal" then Config.FormatOdds(Formulas.copyOdds(def.id, mut)) else ""
-	gui.Extra.TextColor3 = if def.rarity == "Secret" then WHITE else rarity.color
 end
 
 -- Confetti burst + "POP!" text at a position (server-side, replicates to everyone)

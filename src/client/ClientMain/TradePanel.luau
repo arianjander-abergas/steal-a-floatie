@@ -86,9 +86,12 @@ local function infoText(f)
 	if not def then
 		return ""
 	end
-	local parts = { def.name, def.rarity }
+	local parts = { Formulas.nameOf(f), Formulas.rarityOf(f) .. " " .. Config.FormatOdds(Formulas.oddsOf(f)) }
 	if f.mut and f.mut ~= "Normal" then
 		table.insert(parts, f.mut .. " " .. Config.FormatMult(Config.MutationById[f.mut].mult))
+	end
+	if f.form and f.form ~= "Normal" then
+		table.insert(parts, f.form .. " " .. Config.FormatMult(Config.FormById[f.form].mult))
 	end
 	table.insert(parts, "Lv " .. (f.level or 1))
 	local grade = Config.GradeById[f.grade or "C"]

@@ -33,6 +33,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Formulas = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Formulas"))
 local Core = require(script.Parent.Core)
 local DataService = require(script.Parent.DataService)
 local Economy = require(script.Parent.Economy)
@@ -86,13 +87,11 @@ end
 
 -- everything that makes a Floatie worth something: "did it change since it was offered?"
 local function signature(f)
-	return table.concat({ f.id, f.mut, f.level, f.grade, tostring(f.trait) }, "|")
+	return table.concat({ f.id, f.mut, tostring(f.form), f.level, f.grade, tostring(f.trait) }, "|")
 end
 
 local function describe(f)
-	local def = Config.FloatieById[f.id]
-	local mut = if f.mut ~= "Normal" then f.mut .. " " else ""
-	return ("%s%s Lv %d (%s)"):format(mut, def and def.name or f.id, f.level, f.grade)
+	return ("%s Lv %d (%s)"):format(Formulas.nameOf(f), f.level, f.grade)
 end
 
 local function other(trade, player)
@@ -108,7 +107,7 @@ local function side(trade, player)
 	for _, uid in ipairs(offer.uids) do
 		local f = Floaties.find(player, uid)
 		if f then
-			table.insert(list, { uid = f.uid, id = f.id, mut = f.mut, level = f.level, grade = f.grade, trait = f.trait })
+			table.insert(list, { uid = f.uid, id = f.id, mut = f.mut, form = f.form, level = f.level, grade = f.grade, trait = f.trait })
 		end
 	end
 	return {
@@ -213,7 +212,7 @@ local function execute(trade)
 	for _, p in ipairs({ a, b }) do
 		local q = other(trade, p)
 		for _, f in ipairs(moved[p]) do
-			Floaties.add(q, { id = f.id, mut = f.mut, level = f.level, grade = f.grade, trait = f.trait }, { force = true })
+			Floaties.add(q, { id = f.id, mut = f.mut, form = f.form, level = f.level, grade = f.grade, trait = f.trait }, { force = true })
 			table.insert(log[p].gave, describe(f))
 			table.insert(log[q].got, describe(f))
 		end

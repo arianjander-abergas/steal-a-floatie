@@ -5,7 +5,7 @@
 	files, one per system, in ReplicatedStorage > Shared > ConfigParts:
 	  UI           HUD + panel colors, sounds, how Floaties wobble
 	  Floaties     rarities and every Floatie (name, odds, income, shape)
-	  Rolling      inflate time, mutations, pump tiers, conveyor, Backpack
+	  Rolling      inflate time, how a roll works, sizes + mutations, pump tiers, conveyor, Backpack
 	  Progression  levels + sizes, grades, traits, slots, upgrades, rebirth, Index
 	  Rewards      potions, daily + playtime rewards, events, promo codes
 	  Robux        game passes, developer products, Starter Pack, offers
@@ -22,7 +22,7 @@ local Config = {}
 -- General
 ---------------------------------------------------------------------
 Config.GameName = "Floatie Farm"
-Config.Version = "1.1.0"                -- bump every update, shown in the HUD
+Config.Version = "1.2.0"                -- bump every update, shown in the HUD
 Config.DataStoreName = "FloatieData_v1" -- NEVER rename after launch (players lose saves)
 Config.SaveVersion = 2                  -- the save format; DataService converts older saves
 
@@ -42,7 +42,7 @@ Config.AutosaveInterval = 60            -- seconds between saves of each player
 
 Config.HomeCooldown = 3                 -- seconds between teleports (server rate limit; the HUD uses it too).
                                         -- The server lets requests through 0.5 s early so network lag never eats a click.
-Config.SellMult = 20                    -- selling pays income x 20 x grade x mutation
+Config.SellMult = 20                    -- selling pays income x 20 x grade x mutation x size
 
 ---------------------------------------------------------------------
 -- The system files (ConfigParts), merged in
@@ -70,6 +70,11 @@ for i, m in ipairs(Config.Mutations) do
 	m.index = i
 	Config.MutationById[m.id] = m
 end
+Config.FormById = {} -- Huge / Titanic (Config.Sizes are the level sizes, Deflated ... MEGA)
+for i, form in ipairs(Config.Forms) do
+	form.index = i
+	Config.FormById[form.id] = form
+end
 Config.GradeById = {}
 for i, g in ipairs(Config.Grades) do
 	g.index = i
@@ -85,7 +90,7 @@ for i, u in ipairs(Config.Upgrades) do
 	u.index = i
 	Config.UpgradeById[u.id] = u
 end
--- rarity names from Common to Secret
+-- rarity names from Common to Infinite
 Config.RarityOrder = {}
 for name in pairs(Config.Rarities) do
 	table.insert(Config.RarityOrder, name)
@@ -93,6 +98,23 @@ end
 table.sort(Config.RarityOrder, function(a, b)
 	return Config.Rarities[a].order < Config.Rarities[b].order
 end)
+
+-- Config.RarityForOdds(200000) -> "Legendary": the rarity a pull with these odds counts as
+function Config.RarityForOdds(odds)
+	local name = Config.RarityOrder[1]
+	for _, rarity in ipairs(Config.RarityOrder) do
+		if odds >= Config.Rarities[rarity].minOdds then
+			name = rarity
+		end
+	end
+	return name
+end
+
+-- every Floatie's rarity must match its own odds, or the Index and the reveal would disagree
+for _, f in ipairs(Config.Floaties) do
+	assert(Config.RarityForOdds(f.odds) == f.rarity, ("Config: %s is %s but its odds (1 in %s) make it %s"):format(
+		f.id, f.rarity, tostring(f.odds), Config.RarityForOdds(f.odds)))
+end
 
 ---------------------------------------------------------------------
 -- Formatting

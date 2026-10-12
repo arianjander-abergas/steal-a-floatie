@@ -30,7 +30,7 @@ local Sell = {}
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 
 -- Auto Sell choices: sell everything up to (and including) this rarity
-local AUTO_CHOICES = { "Off", "Common", "Uncommon", "Rare", "Epic" }
+local AUTO_CHOICES = { "Off", "Common", "Uncommon", "Rare", "Epic", "Legendary" }
 
 local panel = nil
 local grid = nil
@@ -119,7 +119,7 @@ local function sellPicked()
 		table.insert(uids, uid)
 		local f = State.get(uid)
 		local def = f and Config.FloatieById[f.id]
-		if f and def and (Config.Rarities[def.rarity].order >= 4 or f.mut ~= "Normal" or (f.level or 1) >= 10) then
+		if f and def and (Config.Rarities[Formulas.rarityOf(f)].order >= 4 or f.mut ~= "Normal" or f.form ~= nil or (f.level or 1) >= 10) then
 			valuable = true
 		end
 	end
@@ -172,19 +172,20 @@ function Sell.mount(canvas)
 	local items = {}
 	for _, name in ipairs(AUTO_CHOICES) do
 		local rarity = Config.Rarities[name]
-		table.insert(items, { name = name, text = name, color = if rarity then rarity.color else C.Red, width = if name == "Uncommon" then 104 else 86 })
+		local wide = name == "Uncommon" or name == "Legendary"
+		table.insert(items, { name = name, text = name, color = if rarity then rarity.color else C.Red, width = if wide then 96 else 76 })
 	end
-	autoTabs = Kit.tabs(body, { Position = UDim2.fromOffset(104, 0), Size = UDim2.fromOffset(500, 34) }, {
-		items = items, button = Vector2.new(86, 32), gap = 6, maxTextSize = 16,
+	autoTabs = Kit.tabs(body, { Position = UDim2.fromOffset(104, 0), Size = UDim2.fromOffset(532, 34) }, {
+		items = items, button = Vector2.new(76, 32), gap = 6, maxTextSize = 16,
 		onSelect = function(name)
 			local order = if name == "Off" then 0 else Config.Rarities[name].order + 1
 			remotes.SetSetting:FireServer("autoSell", order)
-			Notify.toast(if name == "Off" then "Auto Sell is off" else "New " .. name .. " and lower Floaties will turn into Air", "info")
+			Notify.toast(if name == "Off" then "Auto Sell is off" else "New " .. name .. " and lower pulls will turn into Air", "info")
 		end,
 	})
 	Kit.label(body, {
 		Name = "Note", Position = UDim2.fromOffset(0, 36), Size = UDim2.new(1, 0, 0, 18),
-		Text = "✨ Mutated Floaties are always kept. Tap Floaties below to pick them, then SELL.", TextColor3 = C.TextSoft,
+		Text = "Auto Sell counts each pull's own rarity (size + mutation). Tap Floaties below to pick them, then SELL.", TextColor3 = C.TextSoft,
 		TextXAlignment = Enum.TextXAlignment.Left,
 	}, { outline = 0, maxTextSize = 15 })
 

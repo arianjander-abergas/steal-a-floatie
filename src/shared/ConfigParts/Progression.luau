@@ -96,11 +96,11 @@ Progression.Upgrades = {
 -- Rebirth: costs ALL your Air (you need at least the cost). Floaties,
 -- pumps and upgrades stay. The first rebirths cost Costs[1], Costs[2], ...;
 -- after the list every rebirth costs CostGrowth times the one before.
--- Tuned with the play simulation in Stage 16 (free player, play-hours):
+-- Tuned with the play simulation in v1.2 (free player, play-hours):
 -- about 3 h, 10 h, 30 h, 75 h, 150 h, 300 h, 500 h, 800 h.
 ---------------------------------------------------------------------
 Progression.Rebirth = {
-	Costs = { 1.5e9, 100e9, 4e12, 50e12, 310e12, 2.1e15, 7.7e15, 23e15 },
+	Costs = { 9.6e9, 330e9, 6.4e12, 65e12, 430e12, 1.9e15, 9e15, 21e15 },
 	CostGrowth = 3,
 	CashBonus = 0.50,   -- +50% Cash per rebirth
 	LuckBonus = 0.10,   -- +10% Luck per rebirth
@@ -110,7 +110,7 @@ Progression.Rebirth = {
 }
 
 ---------------------------------------------------------------------
--- Index: 50 Floaties x 8 versions (Normal + 7 mutations) = 400 entries.
+-- Index: 50 Floaties x 3 sizes x 8 mutations = 1,200 entries (Anime Dice style).
 -- Each milestone also gives +2% Luck forever. Reward keys: see
 -- Config.Rewards at the top of the Rewards part.
 ---------------------------------------------------------------------
@@ -124,6 +124,12 @@ Progression.IndexMilestones = {
 	{ count = 200, reward = { incomeMinutes = 60, minAir = 1000000, gradeTokens = 5, traitGems = 5 } },
 	{ count = 250, reward = { incomeMinutes = 90, minAir = 5000000, gradeTokens = 10, traitGems = 10 } },
 	{ count = 300, reward = { incomeMinutes = 120, minAir = 10000000, gradeTokens = 25, traitGems = 25, jackpotRolls = 3 } },
+	-- the long grind: Huge / Titanic and rare-mutation entries (all 1,200 is out of reach)
+	{ count = 400, reward = { incomeMinutes = 150, minAir = 50e6, gradeTokens = 25, traitGems = 25, jackpotRolls = 2 } },
+	{ count = 500, reward = { incomeMinutes = 180, minAir = 500e6, gradeTokens = 40, traitGems = 40, jackpotRolls = 3 } },
+	{ count = 650, reward = { incomeMinutes = 240, minAir = 5e9, gradeTokens = 60, traitGems = 60, jackpotRolls = 5 } },
+	{ count = 800, reward = { incomeMinutes = 300, minAir = 50e9, gradeTokens = 100, traitGems = 100, jackpotRolls = 10 } },
+	{ count = 1000, reward = { incomeMinutes = 360, minAir = 500e9, gradeTokens = 200, traitGems = 200, jackpotRolls = 25 } },
 }
 
 return Progression

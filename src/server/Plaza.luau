@@ -18,6 +18,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local FloatieModel = require(Shared:WaitForChild("FloatieModel"))
+local Formulas = require(Shared:WaitForChild("Formulas"))
 local Core = require(script.Parent.Core)
 local Economy = require(script.Parent.Economy)
 
@@ -124,11 +125,10 @@ local function refreshServerBest(plaza)
 			end
 		end
 	end
-	local key = bestF and (bestOwner.UserId .. "|" .. bestF.uid .. "|" .. bestF.level .. "|" .. bestF.mut) or ""
+	local key = bestF and table.concat({ bestOwner.UserId, bestF.uid, bestF.level, bestF.mut, tostring(bestF.form) }, "|") or ""
 	if bestF then
-		local def = Config.FloatieById[bestF.id]
-		plaza.serverBestLabel.Text = ("🏆 BEST IN THE SERVER\n%s%s · %s · +%s/s"):format(
-			if bestF.mut ~= "Normal" then bestF.mut .. " " else "", def.name, bestOwner.DisplayName, Config.Format(bestIncome))
+		plaza.serverBestLabel.Text = ("🏆 BEST IN THE SERVER\n%s · %s · +%s/s"):format(
+			Formulas.nameOf(bestF), bestOwner.DisplayName, Config.Format(bestIncome))
 	else
 		plaza.serverBestLabel.Text = "🏆 BEST FLOATIE IN THE SERVER"
 	end
@@ -139,7 +139,7 @@ local function refreshServerBest(plaza)
 	plaza.serverBestFolder:ClearAllChildren()
 	if bestF then
 		local def = Config.FloatieById[bestF.id]
-		local model = FloatieModel.Build(def, bestF.mut, 1.4)
+		local model = FloatieModel.Build(def, bestF.mut, 1.4 * Formulas.formScale(bestF))
 		FloatieModel.SetAnchored(model, true)
 		model:PivotTo(plaza.serverBestSpot)
 		local label = model.PrimaryPart:FindFirstChild("Label")

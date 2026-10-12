@@ -3,7 +3,7 @@
 	Chat commands for testing (Studio, the place owner, or Config.AdminUserIds):
 
 	  ;air 1000000                 add Air
-	  ;give Dragonflate Rainbow 50 a Floatie (mutation and level optional)
+	  ;give Dragonflate Ruby Huge 50  a Floatie (mutation, size and level optional, any order)
 	  ;event GoldenHour            start an event (HeliumRain, GoldenHour, Thunderstorm, SecretSkies, LuckyBreeze)
 	  ;rolls 1000                  set your total rolls (trading unlocks at 1,000)
 	  ;potion Luck 3               add potions (Luck, Cash, Mutation)
@@ -50,13 +50,25 @@ COMMANDS.give = function(player, prof, args)
 			id = def.id
 		end
 	end
-	local mut = "Normal"
-	for _, m in ipairs(Config.Mutations) do
-		if args[3] and string.lower(m.id) == string.lower(args[3]) then
-			mut = m.id
+	-- the rest (any order): a mutation, a size (Huge / Titanic) and a level
+	local mut, form, level = "Normal", "Normal", 1
+	for i = 3, #args do
+		local word = string.lower(args[i])
+		for _, m in ipairs(Config.Mutations) do
+			if string.lower(m.id) == word then
+				mut = m.id
+			end
+		end
+		for _, size in ipairs(Config.Forms) do
+			if string.lower(size.id) == word then
+				form = size.id
+			end
+		end
+		if tonumber(args[i]) then
+			level = number(args[i], 1)
 		end
 	end
-	local f, dest = Floaties.add(player, { id = id, mut = mut, level = number(args[4], 1) }, { noAutoSell = true })
+	local f, dest = Floaties.add(player, { id = id, mut = mut, form = form, level = level }, { noAutoSell = true })
 	if f then
 		Core.notify(player, "Given! (" .. dest .. ")", "success")
 	elseif dest == "sold" then

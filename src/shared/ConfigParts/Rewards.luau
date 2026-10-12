@@ -69,7 +69,7 @@ Rewards.EventInterval = 15 * 60
 Rewards.Events = {
 	HeliumRain   = { title = "🎈 HELIUM RAIN",  desc = "Mutation chance x4!",               duration = 180, mutationMult = 4 },
 	GoldenHour   = { title = "✨ GOLDEN HOUR",  desc = "All Floaties earn 2x Air!",         duration = 180, incomeMult = 2 },
-	Thunderstorm = { title = "⛈️ THUNDERSTORM", desc = "Thunder Floaties (x6) can appear!", duration = 150 },
+	Thunderstorm = { title = "⛈️ THUNDERSTORM", desc = "Thunder Floaties (x155 Air) can appear!", duration = 150 },
 	SecretSkies  = { title = "🌌 SECRET SKIES", desc = "Secret odds x5!",                   duration = 120, secretLuck = 5 },
 	LuckyBreeze  = { title = "🍀 LUCKY BREEZE", desc = "Everyone's Luck x2!",               duration = 180, luckMult = 2 },
 }

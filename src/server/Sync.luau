@@ -42,7 +42,7 @@ end
 -- a plain copy that survives the trip through a RemoteEvent
 local function copyFloatie(f)
 	return {
-		uid = f.uid, id = f.id, mut = f.mut, level = f.level, grade = f.grade,
+		uid = f.uid, id = f.id, mut = f.mut, form = f.form, level = f.level, grade = f.grade,
 		trait = f.trait, locked = f.locked == true, slot = f.slot,
 	}
 end

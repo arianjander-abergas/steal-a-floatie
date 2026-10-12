@@ -1,8 +1,8 @@
 --[[
 	Index (ModuleScript in ServerScriptService.Server)
-	50 Floaties x 6 versions (Normal + 5 mutations) = 300 entries. An entry
-	counts the moment you roll it (even if it is sold right away; see
-	Floaties.discover). Milestones (Config.IndexMilestones) give a reward
+	50 Floaties x 3 sizes x 8 mutations = 1,200 entries, like Anime Dice's
+	size + mutation tabs. An entry counts the moment you roll it (even if it
+	is sold right away; see Floaties.discover). Milestones (Config.IndexMilestones) give a reward
 	and +2% Luck forever each (Economy reads data.indexClaimed).
 
 	  Index.count(data) -> found, total
@@ -14,6 +14,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
+local Formulas = require(Shared:WaitForChild("Formulas"))
 local Core = require(script.Parent.Core)
 local Floaties = require(script.Parent.Floaties)
 local Grant = require(script.Parent.Grant)
@@ -21,14 +22,16 @@ local Sync = require(script.Parent.Sync)
 
 local Index = {}
 
-local TOTAL = #Config.Floaties * #Config.Mutations
+local TOTAL = #Config.Floaties * #Config.Forms * #Config.Mutations
 
 function Index.count(data)
 	local found = 0
 	for _, def in ipairs(Config.Floaties) do
-		for _, m in ipairs(Config.Mutations) do
-			if data.index[def.id .. "|" .. m.id] then
-				found += 1
+		for _, form in ipairs(Config.Forms) do
+			for _, m in ipairs(Config.Mutations) do
+				if data.index[Formulas.indexKey(def.id, m.id, form.id)] then
+					found += 1
+				end
 			end
 		end
 	end

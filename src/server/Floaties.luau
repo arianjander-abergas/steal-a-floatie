@@ -4,14 +4,16 @@
 	The client only asks (Remotes below); every rule is checked here.
 
 	  Floaties.add(player, spec, opts) -> f | nil, dest, soldFor
-	      spec = { id, mut?, level?, grade?, trait? }
-	      dest = "slot" | "backpack" | "sold" (no room anywhere, or below your Auto Sell rarity)
+	      spec = { id, mut?, form?, level?, grade?, trait? }   (form = "Huge" / "Titanic")
+	      dest = "slot" | "backpack" | "sold" (no room anywhere, or the copy's own rarity
+	             is below your Auto Sell rarity)
 	      opts.arriving = true: reserve the slot but let Rolling place the model when the
 	                      conveyor ride ends;  opts.noAutoSell = true: never auto-sell it;
 	      opts.force = true: never sold, even with a full Backpack (trades check room first)
 	  Floaties.find(player, uid) -> f, index
 	  Floaties.remove(player, uid)
-	  Floaties.discover(player, id, mut)       marks an Index entry
+	  Floaties.discover(player, id, mut, form) marks an Index entry
+	  Floaties.indexKey(id, mut, form)         "Pupfloat|Ruby" / "Pupfloat|Ruby|Huge"
 
 	Remotes: Equip, Unequip, EquipBest, SetLocked, LevelUp (fn), SellFloaties (fn)
 ]]
@@ -29,7 +31,7 @@ local Sync = require(script.Parent.Sync)
 
 local Floaties = {}
 
--- fired with (player, id, mut) the first time an Index entry is found
+-- fired with (player, id, mut, form) the first time an Index entry is found
 Floaties.Discovered = Core.signal()
 
 ---------------------------------------------------------------------
@@ -62,13 +64,15 @@ end
 ---------------------------------------------------------------------
 -- Index
 ---------------------------------------------------------------------
-function Floaties.discover(player, id, mut)
+Floaties.indexKey = Formulas.indexKey
+
+function Floaties.discover(player, id, mut, form)
 	local prof = Core.profiles[player]
-	local key = id .. "|" .. (mut or "Normal")
+	local key = Floaties.indexKey(id, mut, form)
 	if prof and not prof.data.index[key] then
 		prof.data.index[key] = true
 		Sync.field(player, "index")
-		Floaties.Discovered:Fire(player, id, mut or "Normal")
+		Floaties.Discovered:Fire(player, id, mut or "Normal", form or "Normal")
 	end
 end
 
@@ -86,18 +90,19 @@ function Floaties.add(player, spec, opts)
 		uid = prof.data.nextUid,
 		id = def.id,
 		mut = if Config.MutationById[spec.mut or ""] then spec.mut else "Normal",
+		form = if spec.form ~= "Normal" and Config.FormById[spec.form or ""] then spec.form else nil,
 		level = math.clamp(spec.level or 1, 1, Config.Levels.Max),
 		grade = if Config.GradeById[spec.grade or ""] then spec.grade else "C",
 		trait = if spec.trait and Config.TraitById[spec.trait] then spec.trait else nil,
 		locked = false,
 		slot = nil,
 	}
-	Floaties.discover(player, f.id, f.mut) -- counts for the Index even if it is sold right away
+	Floaties.discover(player, f.id, f.mut, f.form) -- counts for the Index even if it is sold right away
 
-	-- Auto Sell: anything below the chosen rarity turns into Air at once
+	-- Auto Sell: anything below the chosen rarity (the copy's own rarity) turns into Air at once
 	local autoSell = prof.data.settings.autoSell or 0
-	local rarityOrder = Config.Rarities[def.rarity].order
-	local sell = not opts.noAutoSell and not opts.force and autoSell > 0 and rarityOrder < autoSell and f.mut == "Normal"
+	local rarityOrder = Config.Rarities[Formulas.rarityOf(f)].order
+	local sell = not opts.noAutoSell and not opts.force and autoSell > 0 and rarityOrder < autoSell
 	if not sell then
 		local slot = Bases.freeSlot(player)
 		if slot then
@@ -286,7 +291,7 @@ function Floaties.levelUp(player, uid, count)
 		if pos then
 			FloatieModel.PopEffect(pos + Vector3.new(0, 3, 0), def.color)
 		end
-		Core.notify(player, "🎈 Your " .. def.name .. " inflated to " .. Config.Sizes[newSize].name .. "!", "success")
+		Core.notify(player, "🎈 Your " .. Formulas.nameOf(f) .. " inflated to " .. Config.Sizes[newSize].name .. "!", "success")
 	else
 		Bases.label(player, f, Bases.model(player, f.uid))
 	end

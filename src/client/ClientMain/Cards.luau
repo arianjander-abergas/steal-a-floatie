@@ -47,11 +47,12 @@ function Tile:set(f)
 		self.preview:setFloatie(nil)
 		return
 	end
-	local rarity = Config.Rarities[def.rarity]
+	local rarityName = Formulas.rarityOf(f) -- the copy's own rarity (size + mutation count)
+	local rarity = Config.Rarities[rarityName]
 	Kit.setButtonColor(self.button, rarity.color:Lerp(DARK, 0.55))
 	self.preview:setFloatie(def.id, f.mut)
-	self.name.Text = def.name
-	self.name.TextColor3 = Kit.rarityTextColor(def.rarity):Lerp(Color3.new(1, 1, 1), 0.35)
+	self.name.Text = Formulas.copyName(def.id, nil, f.form) -- "Huge Pupfloat" (the mutation is the icon)
+	self.name.TextColor3 = Kit.rarityTextColor(rarityName):Lerp(Color3.new(1, 1, 1), 0.35)
 	self.level.Text = "Lv " .. (f.level or 1)
 	self.income.Text = "+" .. Config.Format(Formulas.baseIncome(f))
 	local grade = Config.GradeById[f.grade or "C"]
@@ -142,14 +143,11 @@ end
 ---------------------------------------------------------------------
 function Cards.sorted(list, how)
 	local out = table.clone(list)
-	local function rarityOrder(f)
-		local def = Config.FloatieById[f.id]
-		return def and Config.Rarities[def.rarity].order or 0
-	end
 	table.sort(out, function(a, b)
 		local ka, kb
 		if how == "rarity" then
-			ka, kb = rarityOrder(a) * 1e6 + Formulas.mutationMult(a), rarityOrder(b) * 1e6 + Formulas.mutationMult(b)
+			-- the rarest copy first (its odds include size and mutation)
+			ka, kb = Formulas.oddsOf(a), Formulas.oddsOf(b)
 		elseif how == "level" then
 			ka, kb = a.level or 1, b.level or 1
 		elseif how == "value" then

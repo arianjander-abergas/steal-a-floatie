@@ -978,9 +978,15 @@ end
 Kit.format = Config.Format         -- 12345 -> "12.3K"
 Kit.formatTime = Config.FormatTime -- 75 -> "1:15"
 
--- Kit.formatMult(1) -> "1.00x"
+-- Kit.formatMult(1) -> "1.00x", 250 -> "250x", 24000 -> "24Kx" (Luck gets big, like Anime Dice's)
 function Kit.formatMult(x)
-	return string.format("%.2fx", tonumber(x) or 1)
+	x = tonumber(x) or 1
+	if x >= 1000 then
+		return Config.Format(x) .. "x"
+	elseif x >= 100 then
+		return string.format("%dx", math.floor(x))
+	end
+	return string.format("%.2fx", x)
 end
 
 -- Kit.formatPercent(100) -> "+100%"

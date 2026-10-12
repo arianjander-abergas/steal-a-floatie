@@ -50,7 +50,7 @@ function DataService.template()
 		air = Config.StartingAir,
 		rebirths = 0,
 		totalRolls = 0,
-		floaties = {},      -- { uid, id, mut, level, grade, trait, locked, slot } (slot nil = Backpack)
+		floaties = {},      -- { uid, id, mut, form, level, grade, trait, locked, slot } (slot nil = Backpack, form nil = Normal)
 		nextUid = 1,
 		pumps = { owned = 1, equipped = 1 }, -- pump tiers are bought in order: owned = best tier owned
 		upgrades = { slots = 0, luck = 0, cash = 0, time = 0, walk = 0 },
@@ -61,7 +61,7 @@ function DataService.template()
 			potions = { Luck = 0, Cash = 0, Mutation = 0 },
 		},
 		activePotions = { Luck = 0, Cash = 0, Mutation = 0 }, -- seconds left (they only tick while you play)
-		index = {},         -- ["Pupfloat|Silver"] = true
+		index = {},         -- ["Pupfloat|Silver"] = true, ["Pupfloat|Silver|Huge"] = true
 		indexClaimed = 0,   -- Index milestones claimed
 		daily = { day = 0, last = 0 },  -- last Daily Reward day claimed (1..7) and when
 		offerLadder = 0,    -- offer ladder steps claimed
@@ -137,6 +137,7 @@ function DataService.migrate(data)
 			end
 			usedUids[f.uid] = true
 			f.mut = if Config.MutationById[f.mut or ""] then f.mut else "Normal"
+			f.form = if f.form ~= "Normal" and Config.FormById[f.form or ""] then f.form else nil
 			f.level = math.clamp(math.floor(tonumber(f.level) or 1), 1, Config.Levels.Max)
 			f.grade = if Config.GradeById[f.grade or ""] then f.grade else "C"
 			if f.trait and not Config.TraitById[f.trait] then

@@ -6,10 +6,11 @@
 	    R on the keyboard rolls too.
 	  • while the pump inflates, a balloon above the buttons grows, then pops
 	  • the reveal: a small card for everyday pulls. The big reveal in the
-	    middle of the screen ("1 in 24K", rays, wings) is for pulls that are
-	    rare for YOUR luck, Mythic and up, Diamond / Ruby / Rainbow / Thunder, new Rare+
-	    Index entries. With Hide on, nothing pops up at all (no balloon, card
-	    or big reveal); Mythic+ pulls still get their line in the chat.
+	    middle of the screen ("1 in 24K", rays, wings) is for Jackpot Rolls and
+	    pulls 100x rarer than YOUR luck. Name, rarity and odds are the copy's own
+	    ("Huge Ruby Pupfloat", LEGENDARY, 1 in 2M). With Hide on, nothing pops up
+	    at all (no balloon, card or big reveal); very rare pulls still get their
+	    line in the chat.
 	The server decides every result (Remotes.RollResult); this only shows them.
 
 	API:
@@ -63,21 +64,21 @@ local rays = nil
 local bigQueue = {}
 local bigShowing = false
 
-local function label(def, mut)
-	return (if mut and mut ~= "Normal" then mut .. " " else "") .. def.name
+-- "Huge Ruby Pupfloat", its odds and the rarity those odds make it (Anime Dice style)
+local function describe(result)
+	local odds = Formulas.copyOdds(result.id, result.mut, result.form)
+	return Formulas.copyName(result.id, result.mut, result.form), odds, Config.RarityForOdds(odds)
 end
 
--- is this pull worth the big reveal?
-local function isBig(def, mut, isNew)
-	local rarity = Config.Rarities[def.rarity]
-	if rarity.order >= R.AnnounceOrder or R.BigRevealMutations[mut] then
+-- is this pull worth the big reveal? Jackpot Rolls, and Rare-or-better pulls much
+-- rarer than your Luck (about 1 in 100; pulls always land at or above your Luck)
+local function isBig(result)
+	if result.jackpot then
 		return true
 	end
-	if rarity.order < R.BigRevealOrder then
-		return false
-	end
 	local luck = math.max(1, tonumber(player:GetAttribute("LuckMultiplier")) or 1)
-	return isNew or def.odds / luck >= 60
+	local odds = Formulas.copyOdds(result.id, result.mut, result.form)
+	return odds >= luck * R.BigRevealLuckRatio and Config.Rarities[Config.RarityForOdds(odds)].order >= R.BigRevealMinOrder
 end
 
 ---------------------------------------------------------------------
@@ -132,11 +133,12 @@ local function showCard(result)
 	end
 	cardToken += 1
 	local token = cardToken
-	local rarity = Config.Rarities[def.rarity]
+	local name, odds, rarityName = describe(result)
+	local rarity = Config.Rarities[rarityName]
 	cardPreview:setFloatie(def.id, result.mut)
-	cardRarity.Text = string.upper(def.rarity)
-	cardRarity.TextColor3 = Kit.rarityTextColor(def.rarity)
-	cardName.Text = label(def, result.mut)
+	cardRarity.Text = string.upper(rarityName)
+	cardRarity.TextColor3 = Kit.rarityTextColor(rarityName)
+	cardName.Text = name
 	local where
 	if result.dest == "sold" then
 		where = "sold for " .. Config.Format(result.soldFor or 0) .. " Air"
@@ -145,7 +147,7 @@ local function showCard(result)
 	else
 		where = "→ Slot " .. tostring(result.slot or "?")
 	end
-	cardInfo.Text = Config.FormatOdds(Formulas.copyOdds(def.id, result.mut)) .. "  •  " .. where
+	cardInfo.Text = Config.FormatOdds(odds) .. "  •  " .. where
 	cardNew.Visible = result.new == true
 	card.Border.Color = rarity.color
 	card.Visible = true
@@ -187,13 +189,14 @@ function RollUI._showBig(result)
 		return
 	end
 	bigShowing = true
-	local rarity = Config.Rarities[def.rarity]
-	local color = Kit.rarityTextColor(def.rarity)
-	bigOdds.Text = Config.FormatOdds(Formulas.copyOdds(def.id, result.mut))
+	local name, odds, rarityName = describe(result)
+	local rarity = Config.Rarities[rarityName]
+	local color = Kit.rarityTextColor(rarityName)
+	bigOdds.Text = Config.FormatOdds(odds)
 	bigOdds.TextColor3 = color
-	bigRarity.Text = string.upper(def.rarity) .. (if result.jackpot then "  •  🎰 JACKPOT" else "")
+	bigRarity.Text = string.upper(rarityName) .. (if result.jackpot then "  •  🎰 JACKPOT" else "")
 	bigRarity.TextColor3 = color
-	bigName.Text = label(def, result.mut)
+	bigName.Text = name
 	local mut = Config.MutationById[result.mut or "Normal"]
 	bigName.TextColor3 = if mut and mut.color then mut.color else Color3.new(1, 1, 1)
 	bigNew.Visible = result.new == true
@@ -227,7 +230,7 @@ local function onResult(result)
 		return
 	end
 	local hidden = player:GetAttribute("Hide") == true
-	local big = isBig(def, result.mut, result.new and Config.Rarities[def.rarity].order >= R.BigRevealOrder)
+	local big = isBig(result)
 	inflateStart = os.clock()
 	inflateTime = math.max(0.1, result.inflateTime or R.InflateTime)
 	inflating = true

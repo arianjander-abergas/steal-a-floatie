@@ -49,19 +49,22 @@ local function refresh()
 		return
 	end
 	local def = Config.FloatieById[f.id]
-	local rarity = Config.Rarities[def.rarity]
+	local rarityName = Formulas.rarityOf(f) -- this copy's own rarity (size + mutation count)
+	local rarity = Config.Rarities[rarityName]
 	local mut = Config.MutationById[f.mut or "Normal"]
+	local form = Config.FormById[f.form or "Normal"]
 	local grade = Config.GradeById[f.grade or "C"]
 	local trait = f.trait and Config.TraitById[f.trait]
 	local cash = tonumber(player:GetAttribute("CashMultiplier")) or 1
 	local air = tonumber(player:GetAttribute("Air")) or 0
 
-	panel.header.Title.Text = (Cards.MUTATION_ICONS[f.mut] or "🎈") .. " " .. (if f.mut ~= "Normal" then f.mut .. " " else "") .. def.name
+	panel.header.Title.Text = (Cards.MUTATION_ICONS[f.mut] or "🎈") .. " " .. Formulas.nameOf(f)
 	ui.preview:setFloatie(def.id, f.mut)
 	ui.glow.BackgroundColor3 = rarity.color
-	ui.rarity.Text = string.upper(def.rarity) .. "  •  " .. Config.FormatOdds(Formulas.copyOdds(def.id, f.mut))
-	ui.rarity.TextColor3 = Kit.rarityTextColor(def.rarity)
+	ui.rarity.Text = string.upper(rarityName) .. "  •  " .. Config.FormatOdds(Formulas.oddsOf(f))
+	ui.rarity.TextColor3 = Kit.rarityTextColor(rarityName)
 	ui.mutation.Text = "Mutation: " .. f.mut .. "  " .. Config.FormatMult(mut.mult)
+		.. (if form.id ~= "Normal" then "   •   " .. form.id .. "  " .. Config.FormatMult(form.mult) else "")
 	ui.mutation.TextColor3 = if mut.color then mut.color else C.TextSoft
 	ui.grade.Text = "Grade: " .. grade.id .. "  " .. Config.FormatMult(grade.mult)
 	ui.grade.TextColor3 = grade.color
@@ -122,7 +125,7 @@ local function sell()
 		return
 	end
 	local def = Config.FloatieById[f.id]
-	local rarityOrder = Config.Rarities[def.rarity].order
+	local rarityOrder = Config.Rarities[Formulas.rarityOf(f)].order
 	local function doSell()
 		busy = true
 		pcall(function()
@@ -130,11 +133,11 @@ local function sell()
 		end)
 		busy = false
 	end
-	if rarityOrder >= 4 or f.mut ~= "Normal" or (f.level or 1) >= 10 then
+	if rarityOrder >= 4 or f.mut ~= "Normal" or f.form ~= nil or (f.level or 1) >= 10 then
 		Kit.confirm({
 			title = "Sell " .. def.name .. "?",
-			text = ("Sell your %s%s (Lv %d) for %s Air? This can't be undone."):format(
-				if f.mut ~= "Normal" then f.mut .. " " else "", def.name, f.level or 1, Config.Format(Formulas.sellValue(f))),
+			text = ("Sell your %s (Lv %d) for %s Air? This can't be undone."):format(
+				Formulas.nameOf(f), f.level or 1, Config.Format(Formulas.sellValue(f))),
 			yes = "Sell", no = "Keep",
 		}, function(yes)
 			if yes then

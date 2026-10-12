@@ -1,40 +1,46 @@
 """Floatie Farm economy simulator: one free player on Auto Roll.
-The defaults below are the game's numbers (v1.1.0); keep them in step with
+The defaults below are the game's numbers; keep them in step with
 src/shared/ConfigParts when you change the economy, then re-run to see the pace.
-Follows the game rules: rarest-first luck pick (exact distribution), mutations
-(no Conveyor Luck), grades + traits from tokens/gems, levels, upgrades,
-rebirth, pumps, Index milestones (+2% luck, rewards), playtime rewards per
-2 h session, daily rewards, server events, potions, Jackpot Rolls.
+
+It follows the game's rules (v1.2, the Anime Dice model):
+  * a pull is a COPY = Floatie x size x mutation; its odds = Floatie odds x size odds x mutation odds
+  * Luck removes every copy more common than "1 in Luck"; you get one of the rest, each
+    weighted by 1 / its odds (so results land at about 1-10x your Luck)
+  * a copy's rarity tier and income follow its odds (income x (odds multiplier)^0.73)
+  * grades + traits from tokens/gems, levels, upgrades, rebirth, pumps, Index milestones,
+    playtime rewards per 2 h session, daily rewards, server events, potions, Jackpot Rolls
 Usage: python tools/econ_sim.py HOURS RUNS [overrides.json or a JSON string]"""
 import random, math, sys, json, bisect
 from multiprocessing import Pool
 
 RARITIES = ["Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Divine", "Celestial", "Cosmic", "Secret"]
+# a copy's tier from its odds (Config.Rarities minOdds); the last two only exist through size/mutation
+TIERS = [("Common", 0), ("Uncommon", 20), ("Rare", 250), ("Epic", 3000), ("Legendary", 40e3), ("Mythic", 500e3),
+         ("Divine", 6e6), ("Celestial", 70e6), ("Cosmic", 1e9), ("Secret", 10e9), ("Heavenly", 1e12), ("Infinite", 1e15)]
+TIER_NAMES = [t for t, _ in TIERS]
 INCOME = [1, 2, 3, 4, 5, 8, 11, 14, 19, 25, 40, 55, 75, 95, 120, 250, 340, 430, 560, 700,
           1500, 2000, 2600, 3300, 4000, 10e3, 14e3, 18e3, 24e3, 30e3, 80e3, 105e3, 135e3, 165e3, 200e3,
           600e3, 800e3, 1e6, 1.25e6, 1.5e6, 5e6, 6.5e6, 8e6, 10e6, 12e6, 50e6, 65e6, 80e6, 100e6, 120e6]
-OLD_ODDS = [  # before v1.1.0, for comparison
-           2, 3, 5, 7, 10, 15, 20, 25, 35, 50, 60, 90, 130, 180, 250, 400, 600, 800, 1100, 1500,
-            3000, 5000, 7500, 11000, 15000, 30e3, 50e3, 75e3, 110e3, 150e3, 300e3, 500e3, 750e3, 1.1e6, 1.5e6,
-            4e6, 6.5e6, 9e6, 13e6, 20e6, 60e6, 100e6, 150e6, 220e6, 300e6, 1e9, 2e9, 3.5e9, 6e9, 10e9]
 
 BASE = dict(
     odds=[2, 3, 5, 9, 15, 25, 40, 65, 110, 180, 300, 500, 800, 1400, 2300, 3800, 6000, 10000, 17000, 28000, 45000, 75000, 125000, 210000, 350000, 600000, 950000, 1600000, 2600000, 4300000, 7000000, 12000000, 20000000, 32000000, 50000000, 85000000, 140000000, 240000000, 400000000, 650000000, 1100000000, 1800000000, 3000000000, 5000000000, 8000000000, 13000000000, 24000000000, 36000000000, 60000000000, 100000000000],
     income=INCOME,
+    # sizes and mutations: name -> how much rarer ("1 in X" multiplier). Thunder only during a Thunderstorm.
+    sizes=[["Normal", 1], ["Huge", 10], ["Titanic", 100]],
+    muts=[["Normal", 1], ["Silver", 10], ["Gold", 100], ["Emerald", 1000], ["Diamond", 1e4], ["Ruby", 1e5], ["Rainbow", 1e6]],
+    thunder=1000, income_exponent=0.73,
+    mut_potion=3, helium_rain=4, secret_skies=5,
     pump_luck=[1, 2, 3, 5, 8, 12, 20, 30, 50, 80, 125, 200],
-    pump_price=[0, 250, 2200000, 130000000, 9200000000, 360000000000, 4800000000000, 48000000000000, 300000000000000, 2000000000000000, 7600000000000000, 23000000000000000],
+    pump_price=[0, 250, 54000000, 1100000000, 36000000000, 850000000000, 7400000000000, 79000000000000, 380000000000000, 2200000000000000, 11000000000000000, 20000000000000000],
     level_cost_mult=100, level_growth=1.08, per_level=0.15, max_level=100,
     # per, max, costBase, costGrowth (Config.Upgrades; Walk Speed doesn't matter here)
     upg={"slots": (1, 20, 5000, 2.6), "luck": (0.05, 40, 10000, 2.3), "cash": (0.10, 50, 5000, 2.2),
          "time": (0.04, 12, 25000, 3.0)},
-    rebirth_costs=[1500000000, 100000000000, 4000000000000, 50000000000000, 310000000000000, 2100000000000000, 7700000000000000, 23000000000000000], rebirth_growth=3,
+    rebirth_costs=[9600000000, 330000000000, 6400000000000, 65000000000000, 430000000000000, 1900000000000000, 9000000000000000, 21000000000000000], rebirth_growth=3,
     rebirth_base=1.5e9, rebirth_cash=0.5, rebirth_luck=0.10, rebirth_tokens=5,
     sell_mult=20, inflate=2.0, min_inflate=0.5,
-    # mutations rarest first (name, mult, chance); Thunder only in Thunderstorm; Luck helps a little
-    muts=[("Rainbow", 12, 1 / 150000), ("Ruby", 8, 1 / 20000), ("Diamond", 5, 1 / 3000), ("Emerald", 3, 1 / 500),
-          ("Gold", 2, 1 / 100), ("Silver", 1.5, 1 / 20)],
-    thunder=(6, 1 / 150), mut_luck_per_tenfold=0.5,
     grade_token_air=(100e3, 1.3), jackpot_luck=999, index_luck=0.02,
+    playtime_jackpot=True,
     # how the simulated player plays: a 2 h session (Playtime rewards), one Daily claim per 3 h of play,
     # buys anything that pays back within 10 min, Luck/Time upgrades when they cost <= 5 min of income
     session_hours=2.0, day_hours=3.0, payback=600, luck_buy_secs=300, token_buy_secs=300,
@@ -51,7 +57,9 @@ DAILY = [dict(im=10, mn=500), dict(luck=2), dict(im=30, mn=1500), dict(tok=3), d
 INDEX_MS = [(10, dict(im=10, mn=1000, tok=1)), (25, dict(im=15, mn=5000, luck=2)), (50, dict(im=20, mn=20000, tok=3, gem=2)),
             (100, dict(im=30, mn=100e3, luck=2, cash=2, gem=3)), (150, dict(im=45, mn=500e3, tok=5, mut=2)),
             (200, dict(im=60, mn=1e6, tok=5, gem=5)), (250, dict(im=90, mn=5e6, tok=10, gem=10)),
-            (300, dict(im=120, mn=10e6, tok=25, gem=25, jack=3))]
+            (300, dict(im=120, mn=10e6, tok=25, gem=25, jack=3)), (400, dict(im=150, mn=50e6, tok=25, gem=25, jack=2)),
+            (500, dict(im=180, mn=500e6, tok=40, gem=40, jack=3)), (650, dict(im=240, mn=5e9, tok=60, gem=60, jack=5)),
+            (800, dict(im=300, mn=50e9, tok=100, gem=100, jack=10)), (1000, dict(im=360, mn=500e9, tok=200, gem=200, jack=25))]
 
 
 def pick_weighted(table, rng):
@@ -64,6 +72,14 @@ def pick_weighted(table, rng):
     return table[-1][1]
 
 
+def tier_of(odds):
+    name = TIERS[0][0]
+    for t, lo in TIERS:
+        if odds >= lo:
+            name = t
+    return name
+
+
 def rebirth_cost(P, n):
     """Config.Rebirth.Costs list, then x CostGrowth for every rebirth after the list"""
     costs = P.get("rebirth_costs")
@@ -74,20 +90,32 @@ def rebirth_cost(P, n):
     return P["rebirth_base"] * P["rebirth_growth"] ** n
 
 
+def build_copies(P):
+    """every Floatie x size x mutation: (fid, size, mut, odds, income, tier, secretBase, mutated, thunder)"""
+    copies = []
+    muts = [tuple(m) for m in P["muts"]] + [("Thunder", P["thunder"])]
+    for i, (odds, inc) in enumerate(zip(P["odds"], P["income"])):
+        for size, sm in P["sizes"]:
+            for mut, mm in muts:
+                o = odds * sm * mm
+                mult = (sm * mm) ** P["income_exponent"]
+                copies.append((i, size, mut, o, inc * mult, tier_of(o), RARITIES[i // 5] == "Secret",
+                               mut != "Normal", mut == "Thunder"))
+    return copies
+
+
 class Sim:
     def __init__(s, P, seed):
         s.P = P
         s.rng = random.Random(seed)
-        n = len(P["odds"])
-        s.defs = [(i, RARITIES[i // 5], P["odds"][i], P["income"][i]) for i in range(n)]
-        s.by_odds = sorted(s.defs, key=lambda d: -d[2])
-        s.cache = {}
+        s.copies = build_copies(P)
+        s.pools = {}
         s.t = 0.0
         s.air = 100.0
         s.pump = 0
         s.up = {k: 0 for k in P["upg"]}
         s.reb = 0
-        s.placed = []      # floatie = [base_income_with_mut, grade, trait, level, def_income, sell]
+        s.placed = []      # floatie = [income (copy), grade, trait, level, -, sell]
         s.bench = []
         s.index = set()
         s.ms_claimed = 0
@@ -97,11 +125,12 @@ class Sim:
         s.rolls = 0
         s.tokens_bought = 0
         s.ms = {}
-        s.got = {r: 0 for r in RARITIES}
+        s.got = {t: 0 for t in TIER_NAMES}
         s.session_start, s.pt_claimed = 0.0, 0
         s.next_daily, s.day = 0.0, 0
         s.dirty = True
         s.inc = 0.0
+        s.starters = [c for c in s.copies if c[1] == "Normal" and c[2] == "Normal" and c[5] in ("Common", "Uncommon")]
 
     # -- multipliers
     def luck(s):
@@ -130,74 +159,47 @@ class Sim:
     def finc(f):
         return f[0] * (1 + 0.15 * (f[3] - 1)) * f[1] * f[2]
 
-    # -- the pull
-    def dist(s, L, secret):
-        key = (L, secret)
-        d = s.cache.get(key)
-        if d: return d
-        probs = []
-        remaining = 1.0
-        bo = s.by_odds
-        done = False
-        for i, df in enumerate(bo):
-            luck = L * secret if df[1] == "Secret" else L
-            c = luck / df[2]
-            if c >= 1:
-                pool = [g for g in bo[i:] if g[1] == df[1]]
-                tw = sum(1 / g[2] for g in pool)
-                for g in pool:
-                    probs.append((remaining * (1 / g[2]) / tw, g))
-                remaining = 0
-                done = True
-                break
-            probs.append((remaining * c, df))
-            remaining *= 1 - c
-        if not done and remaining > 0:
-            commons = [g for g in s.defs if g[1] == "Common"]
-            tw = sum(1 / g[2] for g in commons)
-            for g in commons:
-                probs.append((remaining * (1 / g[2]) / tw, g))
-        cum, acc, vals = [], 0.0, []
-        for p, g in probs:
-            acc += p
-            cum.append(acc)
-            vals.append(g)
-        d = (cum, vals)
-        if len(s.cache) > 4000: s.cache.clear()
-        s.cache[key] = d
-        return d
+    # -- the pull: luck floor, then weighted by 1 / odds
+    def pool(s):
+        P = s.P
+        mb = (P["mut_potion"] if s.pot["mut"] > s.t else 1) * (P["helium_rain"] if s.event == "HeliumRain" else 1)
+        sb = P["secret_skies"] if s.event == "SecretSkies" else 1
+        th = s.event == "Thunderstorm"
+        key = (mb, sb, th)
+        p = s.pools.get(key)
+        if p: return p
+        rows = []
+        for c in s.copies:
+            if c[8] and not th: continue
+            eff = c[3] / (mb if c[7] else 1) / (sb if c[6] else 1)
+            rows.append((eff, c))
+        rows.sort(key=lambda r: r[0])
+        effs = [r[0] for r in rows]
+        prefix = [0.0]
+        for e, _ in rows:
+            prefix.append(prefix[-1] + 1 / e)
+        p = (effs, prefix, [r[1] for r in rows])
+        s.pools[key] = p
+        return p
 
-    def roll_def(s, mult=1.0):
-        s.last_luck = L = s.luck() * mult
-        secret = 5 if s.event == "SecretSkies" else 1
-        cum, vals = s.dist(L, secret)
-        r = s.rng.random() * cum[-1]
-        return vals[min(bisect.bisect_left(cum, r), len(vals) - 1)]
+    def roll_copy(s, mult=1.0):
+        L = s.luck() * mult
+        effs, prefix, cs = s.pool()
+        i0 = min(bisect.bisect_left(effs, L), len(effs) - 1)
+        lo, hi = prefix[i0], prefix[-1]
+        r = lo + s.rng.random() * (hi - lo)
+        j = min(max(bisect.bisect_right(prefix, r) - 1, i0), len(cs) - 1)
+        return cs[j]
 
-    def roll_mut(s):
-        m = 1.0 + s.P["mut_luck_per_tenfold"] * math.log10(max(1.0, getattr(s, "last_luck", 1.0)))
-        if s.pot["mut"] > s.t: m *= 3
-        if s.event == "HeliumRain": m *= 4
-        tm, tc = s.P["thunder"]
-        if s.event == "Thunderstorm" and s.rng.random() < min(tc * m, 0.9):
-            return "Thunder", tm
-        for name, mm, c in s.P["muts"]:
-            if s.rng.random() < min(c * m, 0.9):
-                return name, mm
-        return "Normal", 1
-
-    def add(s, d, mut=None):
-        name, mm = mut or s.roll_mut()
-        s.got[d[1]] += 1
-        k = "first_" + d[1]
-        if k not in s.ms: s.ms[k] = s.t
-        s.index.add((d[0], name))
-        if name != "Normal" and "mut_" + name not in s.ms: s.ms["mut_" + name] = s.t
-        f = [d[3] * mm, 1, 1, 1, d[3], d[3] * s.P["sell_mult"] * mm]
-        # goes to a slot if it beats the worst placed one, else bench/sold
-        if len(s.placed) < s.slots():
-            s.placed.append(f); s.dirty = True
-        elif s.finc(f) > s.finc(s.placed[-1]) if s.placed else True:
+    def add(s, c):
+        fid, size, mut, odds, inc, tier = c[:6]
+        s.got[tier] += 1
+        s.mark("first_" + tier)
+        if size != "Normal": s.mark("size_" + size)
+        if mut != "Normal": s.mark("mut_" + mut)
+        s.index.add((fid, size, mut))
+        f = [inc, 1, 1, 1, 0, inc * s.P["sell_mult"]]
+        if len(s.placed) < s.slots() or (s.placed and s.finc(f) > s.finc(s.placed[-1])):
             s.placed.append(f); s.dirty = True
         else:
             s.bench.append(f)
@@ -225,11 +227,9 @@ class Sim:
             s.air += max(r.get("mn", 0), s.inc * 60 * r["im"])
         for k in ("tok", "gem", "luck", "cash", "mut", "jack"):
             if k in r: s.items[k] += r[k]
-        if r.get("epic"):
-            pool = [d for d in s.defs if d[1] == "Epic"]
-            d = pick_weighted([(1 / d[2], d) for d in pool], s.rng)
-            m = pick_weighted([(c, (name, mm)) for name, mm, c in s.P["muts"]], s.rng)  # like Grant.randomMutation
-            s.add(d, m)
+        if r.get("epic"):  # an Epic Floatie with a random mutation (Grant.randomMutation: weight 1 / odds)
+            pool = [c for c in s.copies if c[1] == "Normal" and c[2] not in ("Normal", "Thunder") and RARITIES[c[0] // 5] == "Epic"]
+            s.add(pick_weighted([(1 / c[3], c) for c in pool], s.rng))
 
     def use_items(s):
         # drink potions as they come (each adds 10 min)
@@ -307,13 +307,14 @@ class Sim:
         cps = sorted(checkpoints)
         tick = 1.0
         last_spend = -10
+        playtime = PLAYTIME if P["playtime_jackpot"] else PLAYTIME[:-1] + [(60, dict(luck=2))]
         while s.t < end:
             t = s.t
             # session / playtime / daily
             if t - s.session_start >= sess_len:
                 s.session_start, s.pt_claimed = t, 0
-            while s.pt_claimed < len(PLAYTIME) and t - s.session_start >= PLAYTIME[s.pt_claimed][0] * 60:
-                s.give(PLAYTIME[s.pt_claimed][1]); s.pt_claimed += 1; s.use_items()
+            while s.pt_claimed < len(playtime) and t - s.session_start >= playtime[s.pt_claimed][0] * 60:
+                s.give(playtime[s.pt_claimed][1]); s.pt_claimed += 1; s.use_items()
             if t >= s.next_daily:
                 s.give(DAILY[s.day % 7]); s.day += 1; s.next_daily = t + P["day_hours"] * 3600; s.use_items()
             # events
@@ -325,15 +326,14 @@ class Sim:
             while next_roll <= t:
                 s.rolls += 1
                 if s.rolls <= 10:
-                    pool = [d for d in s.defs if d[1] == ("Uncommon" if s.rolls == 7 else "Common")]
-                    d = pick_weighted([(1 / d[2], d) for d in pool], s.rng)
+                    want = "Uncommon" if s.rolls == 7 else "Common"
+                    c = pick_weighted([(1 / c[3], c) for c in s.starters if c[5] == want], s.rng)
                 elif s.items["jack"] > 0:
                     s.items["jack"] -= 1
-                    d = s.roll_def(P["jackpot_luck"])
-                    s.mark("jackpots_used")
+                    c = s.roll_copy(P["jackpot_luck"])
                 else:
-                    d = s.roll_def()
-                s.add(d)
+                    c = s.roll_copy()
+                s.add(c)
                 next_roll += s.interval()
             # index milestones
             while s.ms_claimed < len(INDEX_MS) and len(s.index) >= INDEX_MS[s.ms_claimed][0]:
@@ -376,13 +376,18 @@ def one(args):
     return Sim(P, seed).run(hours, cps)
 
 
+def load_params(argv):
+    P = json.loads(json.dumps(BASE))
+    if len(argv) > 3:
+        over = json.loads(open(argv[3]).read()) if argv[3].endswith(".json") else json.loads(argv[3])
+        P.update(over)
+    return P
+
+
 def main():
     hours = float(sys.argv[1]) if len(sys.argv) > 1 else 24
     seeds = int(sys.argv[2]) if len(sys.argv) > 2 else 6
-    P = json.loads(json.dumps(BASE))
-    if len(sys.argv) > 3:
-        over = json.loads(open(sys.argv[3]).read()) if sys.argv[3].endswith(".json") else json.loads(sys.argv[3])
-        P.update(over)
+    P = load_params(sys.argv)
     cps = [c for c in [600, 1800, 3600, 3 * 3600, 6 * 3600, 12 * 3600, 24 * 3600, 48 * 3600, 100 * 3600,
                        200 * 3600, 400 * 3600, 700 * 3600, 1000 * 3600, 1500 * 3600, 2000 * 3600] if c < hours * 3600]
     with Pool(min(seeds, 8)) as pool:
@@ -390,6 +395,7 @@ def main():
     keys = ["pump2", "first_Rare", "pump3", "first_Epic", "pump4", "first_Legendary", "rebirth1", "pump5",
             "first_Mythic", "rebirth2", "pump6", "first_Divine", "rebirth3", "pump7", "pump8", "first_Celestial",
             "rebirth4", "pump9", "pump10", "first_Cosmic", "rebirth5", "pump11", "pump12", "first_Secret",
+            "first_Heavenly", "first_Infinite", "size_Huge", "size_Titanic",
             "mut_Silver", "mut_Gold", "mut_Emerald", "mut_Diamond", "mut_Thunder", "mut_Ruby", "mut_Rainbow"]
     print(f"=== {hours} play-hours, {seeds} runs (d* = days of PLAY time) ===")
     for k in keys:
@@ -404,8 +410,8 @@ def main():
         if not rows: continue
         rows.sort(key=lambda r: r["inc"])
         r = rows[len(rows) // 2]
-        got = {k: sum(x["got"][k] for x in rows) / len(rows) for k in RARITIES}
-        top = ", ".join(f"{k[:3]} {v:.0f}" if v >= 1 else f"{k[:3]} {v:.2f}" for k, v in got.items() if v > 0 and RARITIES.index(k) >= 3)
+        got = {k: sum(x["got"][k] for x in rows) / len(rows) for k in TIER_NAMES}
+        top = ", ".join(f"{k[:3]} {v:.0f}" if v >= 1 else f"{k[:3]} {v:.2f}" for k, v in got.items() if v > 0 and TIER_NAMES.index(k) >= 3)
         print(f"  @{hm(c).strip():>9} inc {fmt(r['inc'])}/s pump {r['pump']} reb {r['reb']} luck x{r['luck']:.0f} slots {r['slots']} rolls {r['rolls']} idx {r['index']} up {r['up']} | avg got: {top}")
 
 

@@ -1,12 +1,14 @@
 --[[
 	Floatie Farm — IndexPanel (ModuleScript child of the ClientMain LocalScript)
-	The Index (like the Anime Card Farm one):
-	  • mutation tabs down the left (Normal, Silver, Gold, Emerald, Diamond, Ruby,
-	    Rainbow, Thunder); each entry shows the odds of that exact copy
-	    (Floatie odds x mutation odds), so the rare tabs are the long grind
-	  • "37% Completed · 111/300 Collected" in the header
-	  • every Floatie in that mutation, by rarity: found ones show their 3D
-	    model, the rest a padlock, "???" and their odds
+	The Index (Anime Dice's size + mutation filters, Anime Card Farm's look):
+	  • size buttons across the top (Normal / Huge / Titanic) and mutation tabs
+	    down the left (Normal, Silver ... Rainbow, Thunder); together they pick
+	    one version of every Floatie: 50 x 3 x 8 = 1,200 entries
+	  • each entry shows the odds of that exact copy (Floatie x size x mutation)
+	    and is framed in the rarity those odds make it, so the rare tabs are the
+	    long grind (a Titanic Rainbow Pupfloat is 1 in 200M: Celestial)
+	  • "3% Completed · 41/1200 Collected" in the header
+	  • found entries show their 3D model, the rest a padlock, "???" and their odds
 	  • the next milestone, its reward (+2% Luck forever each) and CLAIM
 
 	API:
@@ -33,14 +35,16 @@ local IndexPanel = {}
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 
 local DARK = Color3.fromRGB(26, 24, 36)
-local TOTAL = #Config.Floaties * #Config.Mutations
+local TOTAL = #Config.Floaties * #Config.Forms * #Config.Mutations
 
 local panel = nil
-local tabs = nil
-local entries = {}       -- [i] = { def, frame, preview, name, odds, lock, gradient }
+local tabs = nil         -- mutation tabs (left)
+local sizeTabs = nil     -- Normal / Huge / Titanic (top)
+local entries = {}       -- [i] = { def, frame, border, preview, name, odds, lock }
 local completion = nil
 local milestoneBar, claimButton = nil, nil
 local mutation = "Normal"
+local size = "Normal"
 
 -- every Floatie, by rarity then odds
 local ordered = table.clone(Config.Floaties)
@@ -52,17 +56,20 @@ table.sort(ordered, function(a, b)
 	return a.odds < b.odds
 end)
 
-local function found(id, mut)
+local function found(id, mut, form)
 	local index = State.data.index or {}
-	return index[id .. "|" .. mut] == true
+	return index[Formulas.indexKey(id, mut, form)] == true
 end
 
-local function countAll()
+-- how many entries are found; mut / form = nil counts every one
+local function countFound(mut, form)
 	local n = 0
 	for _, def in ipairs(Config.Floaties) do
-		for _, m in ipairs(Config.Mutations) do
-			if found(def.id, m.id) then
-				n += 1
+		for _, f in ipairs(Config.Forms) do
+			for _, m in ipairs(Config.Mutations) do
+				if (mut == nil or mut == m.id) and (form == nil or form == f.id) and found(def.id, m.id, f.id) then
+					n += 1
+				end
 			end
 		end
 	end
@@ -73,27 +80,30 @@ local function refresh()
 	if not panel or not panel:isOpen() then
 		return
 	end
-	local total = countAll()
+	local total = countFound(nil, nil)
 	completion.Text = ("%d%% Completed\n%d/%d Collected"):format(math.floor(total / TOTAL * 100), total, TOTAL)
 	for _, e in ipairs(entries) do
-		local has = found(e.def.id, mutation)
+		local has = found(e.def.id, mutation, size)
+		local odds = Formulas.copyOdds(e.def.id, mutation, size)
+		local rarityName = Config.RarityForOdds(odds) -- this version's own rarity
+		local rarityColor = Config.Rarities[rarityName].color
 		e.preview:setFloatie(if has then e.def.id else nil, mutation)
 		e.preview.frame.Visible = has
 		e.lock.Visible = not has
 		e.name.Text = if has then e.def.name else "???"
-		e.odds.Text = Config.FormatOdds(Formulas.copyOdds(e.def.id, mutation))
-		e.name.TextColor3 = if has then Kit.rarityTextColor(e.def.rarity):Lerp(Color3.new(1, 1, 1), 0.35) else C.TextSoft
-		local rarityColor = Config.Rarities[e.def.rarity].color
+		e.name.TextColor3 = if has then Kit.rarityTextColor(rarityName):Lerp(Color3.new(1, 1, 1), 0.35) else C.TextSoft
+		e.odds.Text = Config.FormatOdds(odds)
+		e.odds.TextColor3 = rarityColor:Lerp(Color3.new(1, 1, 1), 0.3)
+		if e.border then
+			e.border.Color = rarityColor:Lerp(Color3.new(0, 0, 0), 0.25)
+		end
 		e.frame.BackgroundColor3 = if has then rarityColor:Lerp(DARK, 0.55) else DARK
 	end
 	for name, button in pairs(tabs.buttons) do
-		local n = 0
-		for _, def in ipairs(Config.Floaties) do
-			if found(def.id, name) then
-				n += 1
-			end
-		end
-		Kit.setButtonText(button, (Cards.MUTATION_ICONS[name] or "🎈") .. " " .. name .. "  " .. n .. "/" .. #Config.Floaties)
+		Kit.setButtonText(button, (Cards.MUTATION_ICONS[name] or "🎈") .. " " .. name .. "  " .. countFound(name, size) .. "/" .. #Config.Floaties)
+	end
+	for name, button in pairs(sizeTabs.buttons) do
+		Kit.setButtonText(button, name .. "  " .. countFound(nil, name) .. "/" .. (#Config.Floaties * #Config.Mutations))
 	end
 	-- the next milestone
 	local claimed = State.data.indexClaimed or 0
@@ -137,7 +147,20 @@ function IndexPanel.mount(canvas)
 		end,
 	})
 
-	local grid = Kit.scroll(body, { Name = "Entries", Position = UDim2.fromOffset(160, 0), Size = UDim2.new(1, -160, 1, -54) }, { cell = Vector2.new(84, 104), gap = 6 })
+	-- sizes across the top of the grid (Anime Dice's None / Huge / Titanic)
+	local sizeItems = {}
+	for _, form in ipairs(Config.Forms) do
+		table.insert(sizeItems, { name = form.id, text = form.id, color = if form.color then form.color:Lerp(Color3.new(0, 0, 0), 0.3) else C.Blue })
+	end
+	sizeTabs = Kit.tabs(body, { Position = UDim2.fromOffset(160, 0), Size = UDim2.new(1, -160, 0, 32) }, {
+		button = Vector2.new(170, 30), gap = 6, maxTextSize = 15, items = sizeItems,
+		onSelect = function(name)
+			size = name
+			refresh()
+		end,
+	})
+
+	local grid = Kit.scroll(body, { Name = "Entries", Position = UDim2.fromOffset(160, 38), Size = UDim2.new(1, -160, 1, -92) }, { cell = Vector2.new(84, 104), gap = 6 })
 	for i, def in ipairs(ordered) do
 		local frame = Kit.plate(grid, { Name = def.id, LayoutOrder = i }, { color = DARK, transparency = 0, radius = 10, border = 3 })
 		local border = frame:FindFirstChild("Border")
@@ -151,7 +174,7 @@ function IndexPanel.mount(canvas)
 			Name = "Odds", Position = UDim2.new(0, 4, 0.8, 0), Size = UDim2.new(1, -8, 0.16, 0),
 			Text = Config.FormatOdds(def.odds), TextColor3 = Config.Rarities[def.rarity].color:Lerp(Color3.new(1, 1, 1), 0.3),
 		}, { maxTextSize = 13 })
-		table.insert(entries, { def = def, frame = frame, preview = preview, name = name, odds = odds, lock = lock })
+		table.insert(entries, { def = def, frame = frame, border = border, preview = preview, name = name, odds = odds, lock = lock })
 	end
 
 	milestoneBar = Kit.progress(body, {
@@ -170,6 +193,7 @@ function IndexPanel.mount(canvas)
 	end)
 
 	tabs:select("Normal", true)
+	sizeTabs:select("Normal", true)
 	State.changed:Connect(function(what)
 		if what == "index" or what == "indexClaimed" or what == "full" then
 			refresh()

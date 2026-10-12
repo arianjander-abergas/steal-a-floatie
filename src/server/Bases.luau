@@ -149,7 +149,8 @@ function Bases.place(player, f)
 	if not def or not pad then
 		return nil
 	end
-	local model = FloatieModel.Build(def, f.mut, Formulas.size(f.level).scale)
+	-- level size x Huge / Titanic size
+	local model = FloatieModel.Build(def, f.mut, Formulas.size(f.level).scale * Formulas.formScale(f))
 	FloatieModel.SetAnchored(model, true)
 	model:PivotTo(slotTop(pad))
 	model:SetAttribute("OwnerUserId", player.UserId)
@@ -159,7 +160,7 @@ function Bases.place(player, f)
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.Name = "ManagePrompt"
 	prompt.ActionText = "Manage"
-	prompt.ObjectText = def.name
+	prompt.ObjectText = Formulas.nameOf(f)
 	prompt.KeyboardKeyCode = Enum.KeyCode.E
 	prompt.HoldDuration = 0
 	prompt.MaxActivationDistance = 9
@@ -229,7 +230,7 @@ function Bases.refreshBest(player)
 		return
 	end
 	local f = Bases.bestFloatie(player)
-	local key = f and (f.uid .. "|" .. f.level .. "|" .. f.mut) or ""
+	local key = f and table.concat({ f.uid, f.level, f.mut, tostring(f.form) }, "|") or ""
 	if base.bestKey == key then
 		return
 	end
@@ -243,7 +244,7 @@ function Bases.refreshBest(player)
 		return
 	end
 	local def = Config.FloatieById[f.id]
-	local model = FloatieModel.Build(def, f.mut, 1.15)
+	local model = FloatieModel.Build(def, f.mut, 1.15 * Formulas.formScale(f))
 	FloatieModel.SetAnchored(model, true)
 	model:PivotTo(base.bestSpot)
 	local label = model.PrimaryPart:FindFirstChild("Label")
@@ -252,7 +253,7 @@ function Bases.refreshBest(player)
 	end
 	model.Parent = base.floatieFolder
 	base.bestModel = model
-	base.bestLabel.Text = "⭐ BEST: " .. (if f.mut ~= "Normal" then f.mut .. " " else "") .. def.name
+	base.bestLabel.Text = "⭐ BEST: " .. Formulas.nameOf(f)
 end
 
 ---------------------------------------------------------------------

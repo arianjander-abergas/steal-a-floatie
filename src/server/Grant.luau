@@ -79,17 +79,18 @@ function Grant.pickFloatie(spec)
 	return randomOfRarity(rarity) or randomOfRarity(spec.rarity)
 end
 
+-- a guaranteed mutation (never Normal or event-only), rarer ones less likely (weight 1 / odds)
 function Grant.randomMutation()
 	local pool, total = {}, 0
 	for _, m in ipairs(Config.Mutations) do
-		if m.chance > 0 and not m.eventOnly then
+		if m.id ~= "Normal" and not m.eventOnly then
 			table.insert(pool, m)
-			total += m.chance
+			total += 1 / m.odds
 		end
 	end
 	local roll = Core.rng:NextNumber() * total
 	for _, m in ipairs(pool) do
-		roll -= m.chance
+		roll -= 1 / m.odds
 		if roll <= 0 then
 			return m.id
 		end

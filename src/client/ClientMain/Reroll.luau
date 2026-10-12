@@ -130,7 +130,7 @@ local function refresh(kind)
 	if f then
 		local def = Config.FloatieById[f.id]
 		v.preview:setFloatie(def.id, f.mut)
-		v.name.Text = (if f.mut ~= "Normal" then f.mut .. " " else "") .. def.name .. "  •  Lv " .. f.level
+		v.name.Text = Formulas.nameOf(f) .. "  •  Lv " .. f.level
 		if not v.spinning then
 			local entry = current(kind, f)
 			v.result.Text = entryText(kind, entry)

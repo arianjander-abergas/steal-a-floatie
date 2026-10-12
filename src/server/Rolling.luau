@@ -6,16 +6,16 @@
 
 	The server decides the result the moment you roll (so it can't be
 	cheated) and reserves the slot; the model appears when the ride ends.
-	See ConfigParts/Rolling for how Luck picks the Floatie.
+	See ConfigParts/Rolling for how Luck picks the copy (Floatie x size x mutation).
 
 	Remotes
 	  Roll (event)                 roll now (ignored until the last roll's inflate time is over)
-	  SetSetting (event)           ("autoRoll" | "hide", bool) or ("autoSell", rarity order 0..10)
+	  SetSetting (event)           ("autoRoll" | "hide", bool) or ("autoSell", rarity order 0..#RarityOrder)
 	  UseJackpot (fn) -> ok, msg   spend a Jackpot Roll: your next roll gets x999 Luck
-	  RollResult (to you)          { id, mut, dest, soldFor, uid, slot, inflateTime, jackpot, rollNumber, new }
+	  RollResult (to you)          { id, mut, form, dest, soldFor, uid, slot, inflateTime, jackpot, rollNumber, new }
 	  PumpPuff (to players nearby) (baseIndex, inflateTime) a balloon inflates at that base's pump
-	  ConveyorRide (to nearby)     { base, id, mut, slot, dest, soldFor, ride, walk } after the pop
-	  ChatMessage (to everyone)    Mythic+ / Ruby / Rainbow pulls are announced in the chat (Core.chatAll)
+	  ConveyorRide (to nearby)     { base, id, mut, form, slot, dest, soldFor, ride, walk } after the pop
+	  ChatMessage (to everyone)    very rare pulls are announced in the chat (Core.chatAll)
 	Player attributes: AutoRoll, Hide, AutoSell, JackpotReady
 ]]
 
@@ -42,15 +42,9 @@ local PumpPuffRE = Core.remote("PumpPuff")
 local ConveyorRideRE = Core.remote("ConveyorRide")
 
 ---------------------------------------------------------------------
--- Picking the Floatie
+-- Picking the copy (Floatie x size x mutation), the Anime Dice way
 ---------------------------------------------------------------------
--- every Floatie, rarest (largest odds) first
-local byOdds = table.clone(Config.Floaties)
-table.sort(byOdds, function(a, b)
-	return a.odds > b.odds
-end)
-
--- a random one of `list`, commoner ones more likely (weight 1 / odds)
+-- a random one of `list` (Floaties), commoner ones more likely (weight 1 / odds)
 local function weightedPick(list)
 	local total = 0
 	for _, def in ipairs(list) do
@@ -76,51 +70,20 @@ local function ofRarity(rarity)
 	return list
 end
 
--- rarest first, each hits with chance Luck / odds. Once a Floatie's chance
--- reaches 100%, every commoner one is certain too: then you get one of the
--- certain Floaties of that rarity (so Luck pushes Commons out).
-function Rolling.pickFloatie(player, luckMult)
-	local luck = Economy.luck(player) * (luckMult or 1)
-	local ev = Economy.activeEvent()
-	local secretLuck = luck * (ev and ev.secretLuck or 1)
-	for i, def in ipairs(byOdds) do
-		local chance = (if def.rarity == "Secret" then secretLuck else luck) / def.odds
-		if chance >= 1 then
-			local pool = {}
-			for j = i, #byOdds do
-				if byOdds[j].rarity == def.rarity then
-					table.insert(pool, byOdds[j])
-				end
-			end
-			return weightedPick(pool)
-		end
-		if Core.rng:NextNumber() < chance then
-			return def
-		end
-	end
-	local commons = ofRarity("Common")
-	return if #commons > 0 then weightedPick(commons) else Config.Floaties[1]
+-- the pull: Formulas.pickCopy with this player's Luck and boosts (see ConfigParts/Rolling).
+-- luckMult = 999 for a Jackpot Roll. Returns def, mutation id, size id.
+local function random()
+	return Core.rng:NextNumber()
 end
 
--- rarest mutation first; Luck helps a little (x1.5 per tenfold, a Jackpot
--- Roll's luck counts too), Mutation potions and Helium Rain multiply the chances
-function Rolling.pickMutation(player, luckMult)
-	local luck = Economy.luck(player) * (luckMult or 1)
-	local mult = Economy.mutationMult(player) * (1 + Config.MutationLuckPerTenfold * math.log10(math.max(1, luck)))
-	local _, evName = Economy.activeEvent()
-	for i = #Config.Mutations, 2, -1 do
-		local m = Config.Mutations[i]
-		local chance
-		if m.eventOnly then
-			chance = if evName == m.eventOnly then m.eventChance * mult else 0
-		else
-			chance = m.chance * mult
-		end
-		if Core.rng:NextNumber() < math.min(chance, Config.MaxMutationChance) then
-			return m.id
-		end
-	end
-	return "Normal"
+function Rolling.pickCopy(player, luckMult)
+	local ev, evName = Economy.activeEvent()
+	local c = Formulas.pickCopy(Economy.luck(player) * (luckMult or 1), {
+		mutation = Economy.mutationMult(player),
+		secret = ev and ev.secretLuck or 1,
+		event = evName,
+	}, random)
+	return Config.FloatieById[c.id], c.mut, c.form
 end
 
 ---------------------------------------------------------------------
@@ -154,10 +117,6 @@ end
 ---------------------------------------------------------------------
 -- Roll
 ---------------------------------------------------------------------
-local function rollLabel(def, mut)
-	return (if mut ~= "Normal" then mut .. " " else "") .. def.name
-end
-
 function Rolling.roll(player)
 	local prof = Core.getProfile(player)
 	if not prof then
@@ -177,18 +136,17 @@ function Rolling.roll(player)
 		prof.jackpotNext = false
 		player:SetAttribute("JackpotReady", false)
 	end
-	local def
+	local def, mut, form
 	if n <= R.StarterRolls and not jackpot then
-		def = weightedPick(ofRarity(if n == R.StarterUncommonAt then "Uncommon" else "Common"))
+		def, mut, form = weightedPick(ofRarity(if n == R.StarterUncommonAt then "Uncommon" else "Common")), "Normal", "Normal"
 	else
-		def = Rolling.pickFloatie(player, if jackpot then R.JackpotLuck else 1)
+		def, mut, form = Rolling.pickCopy(player, if jackpot then R.JackpotLuck else 1)
 	end
-	local mut = Rolling.pickMutation(player, if jackpot then R.JackpotLuck else 1)
 	data.totalRolls = n
 	Sync.field(player, "totalRolls")
 
-	local isNew = not data.index[def.id .. "|" .. mut]
-	local f, dest, soldFor = Floaties.add(player, { id = def.id, mut = mut }, { arriving = true })
+	local isNew = not data.index[Floaties.indexKey(def.id, mut, form)]
+	local f, dest, soldFor = Floaties.add(player, { id = def.id, mut = mut, form = form }, { arriving = true })
 	local base = Bases.get(player)
 	local showRide = base ~= nil and not data.settings.hide
 	local ride, walk = 0, 0
@@ -197,7 +155,7 @@ function Rolling.roll(player)
 	end
 
 	RollResultRE:FireClient(player, {
-		id = def.id, mut = mut, dest = dest, soldFor = soldFor, uid = f and f.uid, slot = f and f.slot,
+		id = def.id, mut = mut, form = form, dest = dest, soldFor = soldFor, uid = f and f.uid, slot = f and f.slot,
 		inflateTime = inflate, jackpot = jackpot, rollNumber = n, new = isNew,
 	})
 	fireNear(PumpPuffRE, player, base, prof.base, inflate)
@@ -208,7 +166,7 @@ function Rolling.roll(player)
 		end
 		if showRide then
 			fireNear(ConveyorRideRE, player, base, {
-				base = prof.base, id = def.id, mut = mut, slot = f and f.slot, dest = dest,
+				base = prof.base, id = def.id, mut = mut, form = form, slot = f and f.slot, dest = dest,
 				soldFor = soldFor, ride = ride, walk = walk,
 			})
 			if f then
@@ -217,11 +175,14 @@ function Rolling.roll(player)
 		elseif f then
 			Floaties.arrive(player, f.uid)
 		end
-		-- very rare pulls go in the server chat (not on everyone's screen)
-		local rarity = Config.Rarities[def.rarity]
-		if rarity.order >= R.AnnounceOrder or (jackpot and rarity.order >= 5) or R.AnnounceMutations[mut] then
-			Core.chatAll(("🌟 %s pulled a %s %s (%s)!"):format(player.DisplayName, string.upper(def.rarity), rollLabel(def, mut),
-				Config.FormatOdds(Formulas.copyOdds(def.id, mut))), def.rarity)
+		-- very rare pulls go in the server chat (not on everyone's screen): Mythic or rarer
+		-- AND rare for this player's Luck, or Legendary+ from a Jackpot Roll
+		local odds = Formulas.copyOdds(def.id, mut, form)
+		local rarityName = Config.RarityForOdds(odds)
+		local order = Config.Rarities[rarityName].order
+		if (order >= R.AnnounceOrder and odds >= Economy.luck(player) * R.AnnounceLuckRatio) or (jackpot and order >= 5) then
+			Core.chatAll(("🌟 %s pulled a %s %s (%s)!"):format(player.DisplayName, string.upper(rarityName),
+				Formulas.copyName(def.id, mut, form), Config.FormatOdds(odds)), rarityName)
 		end
 	end)
 	Core.StatsChanged:Fire(player) -- TotalRolls on the HUD (and the quick starter rolls end)

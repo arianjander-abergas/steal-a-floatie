@@ -22,19 +22,25 @@ local Floaties = {}
 local C = Color3.fromRGB
 
 ---------------------------------------------------------------------
--- Rarities, from Common (order 1) to Secret (order 10)
+-- Rarities, from Common (order 1) up. Like Anime Dice, a pull's rarity
+-- comes from ITS odds (Floatie x size x mutation, Config.RarityForOdds):
+-- minOdds is where each rarity starts, so a Ruby Pupfloat (1 in 200K) is
+-- Legendary. Every Floatie's own rarity below matches its plain odds.
+-- Heavenly and Infinite only exist through sizes and mutations.
 ---------------------------------------------------------------------
 Floaties.Rarities = {
-	Common    = { order = 1,  color = C(154, 163, 174) },
-	Uncommon  = { order = 2,  color = C(63, 174, 90) },
-	Rare      = { order = 3,  color = C(47, 127, 224) },
-	Epic      = { order = 4,  color = C(155, 77, 224) },
-	Legendary = { order = 5,  color = C(240, 138, 36) },
-	Mythic    = { order = 6,  color = C(226, 61, 107) },
-	Divine    = { order = 7,  color = C(217, 178, 48) },
-	Celestial = { order = 8,  color = C(47, 184, 216) },
-	Cosmic    = { order = 9,  color = C(91, 63, 208) },
-	Secret    = { order = 10, color = C(27, 27, 31) },
+	Common    = { order = 1,  minOdds = 0,    color = C(154, 163, 174) },
+	Uncommon  = { order = 2,  minOdds = 20,   color = C(63, 174, 90) },
+	Rare      = { order = 3,  minOdds = 250,  color = C(47, 127, 224) },
+	Epic      = { order = 4,  minOdds = 3e3,  color = C(155, 77, 224) },
+	Legendary = { order = 5,  minOdds = 40e3, color = C(240, 138, 36) },
+	Mythic    = { order = 6,  minOdds = 500e3, color = C(226, 61, 107) },
+	Divine    = { order = 7,  minOdds = 6e6,  color = C(217, 178, 48) },
+	Celestial = { order = 8,  minOdds = 70e6, color = C(47, 184, 216) },
+	Cosmic    = { order = 9,  minOdds = 1e9,  color = C(91, 63, 208) },
+	Secret    = { order = 10, minOdds = 10e9, color = C(27, 27, 31) },
+	Heavenly  = { order = 11, minOdds = 1e12, color = C(255, 236, 160) },
+	Infinite  = { order = 12, minOdds = 1e15, color = C(255, 105, 200) },
 }
 
 ---------------------------------------------------------------------

@@ -31,7 +31,7 @@ local started = false
 local ridesFolder = nil
 local rides = {}            -- active rides
 local puffs = {}            -- [baseIndex] = active puff
-local templates = {}        -- "id|mut" -> Model (label removed)
+local templates = {}        -- "id|mut|form" -> Model (label removed)
 
 local BALLOON_COLORS = {
 	Color3.fromRGB(255, 90, 150), Color3.fromRGB(90, 170, 255), Color3.fromRGB(255, 220, 70),
@@ -52,14 +52,15 @@ local function nearCamera(pos)
 	return cam ~= nil and (cam.CFrame.Position - pos).Magnitude < DRAW_DISTANCE
 end
 
-local function template(id, mut)
-	local key = id .. "|" .. mut
+local function template(id, mut, form)
+	local key = id .. "|" .. mut .. "|" .. form
 	local t = templates[key]
 	if t == nil then
 		local def = Config.FloatieById[id]
+		local size = Config.FormById[form] or Config.FormById.Normal
 		t = false
 		if def then
-			local ok, model = pcall(FloatieModel.Build, def, mut, 1)
+			local ok, model = pcall(FloatieModel.Build, def, mut, size.scale)
 			if ok then
 				FloatieModel.SetAnchored(model, true)
 				local label = model.PrimaryPart:FindFirstChild("Label")
@@ -202,7 +203,7 @@ local function onRide(info)
 	if not startPart or not endPart or not nearCamera(startPart.Position) then
 		return
 	end
-	local proto = template(info.id, info.mut or "Normal")
+	local proto = template(info.id, info.mut or "Normal", info.form or "Normal")
 	if not proto then
 		return
 	end

@@ -6,7 +6,7 @@
 
 	API:
 	  State.start()                  -- listens to Remotes.Sync
-	  State.floaties                 -- [uid] = { uid, id, mut, level, grade, trait, locked, slot }
+	  State.floaties                 -- [uid] = { uid, id, mut, form, level, grade, trait, locked, slot }
 	  State.data                     -- the other synced fields: items, pumps, upgrades, index, daily, ...
 	  State.get(uid) -> record | nil
 	  State.list() -> { record, ... }   every Floatie (a new table each call)
